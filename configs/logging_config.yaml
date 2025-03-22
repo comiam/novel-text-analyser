@@ -1,0 +1,39 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  colored:
+    (): colorlog.ColoredFormatter
+    format: "%(asctime)s [%(log_color)s%(levelname)s%(reset)s] %(name)-25.25s: %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+    log_colors:
+      DEBUG: cyan
+      INFO: green
+      WARNING: yellow
+      ERROR: red
+      CRITICAL: red,bg_white
+
+filters:
+  abbreviate_name:
+    (): novel_analyser.utils.logging.AbbreviateNameFilter
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: colored
+    filters: [abbreviate_name]
+    stream: ext://sys.stdout
+
+loggers:
+  novel_analyser:
+    level: DEBUG
+    handlers: [console]
+    propagate: false
+
+root:
+  level: INFO
+  handlers: [console]

@@ -1,93 +1,458 @@
-# Text Analysis
+# Novel Analyser
 
+Библиотека для комплексного анализа русскоязычных текстов визуальных новелл.
 
+## Описание
 
-## Getting started
+Novel Analyser - это библиотека для всестороннего анализа текстов визуальных новелл и других литературных произведений на русском языке. Библиотека предлагает широкий набор инструментов для анализа текста, включая:
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- Базовый анализ текста (количество блоков, время чтения)
+- Анализ читаемости и сложности текста
+- Нарративный анализ (структура повествования, ритм)
+- Анализ эмоциональной окраски текста
+- Тематическое моделирование
+- Анализ персонажей и их диалогов
+- Анализ повторяемости и стиля
+- Кластеризацию текста на основе семантических эмбеддингов
+- Семантический анализ (когерентность текста)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Поддерживаемые форматы
 
-## Add your files
+На данный момент поддерживается только простой Twine формат сюжета. Библиотека может анализировать текстовые файлы, созданные с использованием Twine, где сюжет представлен в виде узлов и связей между ними.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+Пример поддерживаемого синтаксиса сюжета:
+```bash
+# Реплика первого героя
+ГЕРОЙ 1
+Всё это пустой трёп.
+Кабачки прекрасны.
+Ты просто не шаришь, дурачок.
 
+# Разделение между репликами - пуская строка.
+ГЕРОЙ 2
+Я хотяб ногти не крашу.
+
+# Это нарратив без привязки к герою. Просто голос диктора или описание.
+Герой 1 один был шокирован парированием героя 2 и потому активировал замедление времени.
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/story-lords/stars-on-paper/text_analysis.git
-git branch -M main
-git push -uf origin main
+
+### Ограничения текущей реализации
+
+- Формат файла должен быть `.twee`
+
+### Расширяемость на другие форматы
+
+Это более сложная операция, но возможная. Библиотека поддерживает расширение парсинга различных форматов сюжета. Про это ниже в разделе "Расширяемость".
+
+## Установка
+
+### Требования
+
+- Python 3.10 или выше
+- pip (менеджер пакетов Python)
+
+### Установка из исходников
+
+```bash
+# Клонирование репозитория
+git clone https://github.com/comiam/text_analysis.git
+cd text_analysis
+
+# Установка зависимостей
+pip install -r requirements.txt
 ```
 
-## Integrate with your tools
+## Использование
 
-- [ ] [Set up project integrations](https://gitlab.com/story-lords/stars-on-paper/text_analysis/-/settings/integrations)
+### Комплексный анализ текста
 
-## Collaborate with your team
+Ниже приведен пример полного анализа текста с сохранением результатов и исследованием различных аспектов:
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+```python
+from novel_analyser import TextAnalyser, configure
+import os
 
-## Test and Deploy
+# Настройка конфигурации - один раз при запуске
+configure({
+    "output": {
+        "output_dir": "analysis_results"
+    },
+    "model": {
+        "use_gpu": True,  # Использовать GPU если доступен
+        "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    },
+    "analyse": {
+        "reading_speed_wpm": 180.0  # Скорость чтения слов в минуту для подсчета времени
+    },
+    "sentiment_analyze": {
+        "positive_threshold": 0.1,   # Порог для позитивной оценки
+        "negative_threshold": -0.1   # Порог для негативной оценки
+    },
+    "character": {
+        "predefined_names": ["АЛИСА", "БОРЯ", "ВИКА"]  # Предопределенные имена персонажей
+    }
+})
 
-Use the built-in continuous integration in GitLab.
+# Создание анализатора
+analyser = TextAnalyser()
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+# Путь к файлу с текстом новеллы
+file_path = "path/to/your/novel.txt"
 
-***
+# Определение интересующих типов анализа
+# Можно выбрать только нужные типы анализа: 
+# 'basic', 'readability', 'narrative', 'sentiment', 
+# 'topic', 'character', 'repetition', 'clustering', 'semantic'
+analyses = [
+    "basic",           # Базовый анализ текста
+    "readability",     # Анализ читаемости
+    "narrative",       # Нарративный анализ
+    "sentiment",       # Анализ эмоциональной окраски
+    "character",       # Анализ персонажей
+    "topic"            # Тематическое моделирование
+]
 
-# Editing this README
+# Выполнение полного анализа текста
+result = analyser.analyse_file(file_path, analyses=analyses)
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+# Вывод итогового резюме
+print("\n=== РЕЗУЛЬТАТЫ АНАЛИЗА ===\n")
+print(result.summary)
+```
 
-## Suggestions for a good README
+### Анализ эмоциональной окраски текста:
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```python
+from novel_analyser import SentimentAnalyser # так же есть и остальные модули анализа по отдельности
 
-## Name
-Choose a self-explaining name for your project.
+# Создаем анализатор настроений
+sentiment_analyser = SentimentAnalyser()
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+# Анализ текста
+result = sentiment_analyser.analyse(["Ваш текст для анализа"])
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+# Доступ к результатам
+print(f"Средняя эмоциональная окраска: {result.metrics['avg_sentiment']}")
+print(f"Процент положительных блоков: {result.metrics['pos_ratio'] * 100:.1f}%")
+print(f"Процент отрицательных блоков: {result.metrics['neg_ratio'] * 100:.1f}%")
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### Тематическое моделирование:
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+```python
+from novel_analyser import TopicModeler
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+# Создаем анализатор тем
+topic_analyser = TopicModeler()
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+# Находим оптимальное количество тем и ключевые слова
+optimal_topics, topic_keywords = topic_analyser.extract_topics("Ваш текст")
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+print(f"Оптимальное количество тем: {optimal_topics}")
+for topic_id, keywords in topic_keywords.items():
+    print(f"Тема {topic_id}: {', '.join(keywords)}")
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Анализ персонажей:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```python
+from novel_analyser import CharacterAnalyser
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+# Создаем анализатор персонажей
+character_analyser = CharacterAnalyser()
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+# Получаем метрики персонажей
+character_metrics = character_analyser.compute_character_metrics({
+    "герой": "Ну как с сосисками?",
+    "герой 2": "5 минут, турецкий"
+})
 
-## License
-For open source projects, say how it is licensed.
+for char_name, metrics in character_metrics.items():
+    print(f"Персонаж: {char_name}")
+    print(f"Метрики: {metrics}")
+```
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### Настройка конфигурации
+
+```python
+from novel_analyser import configure
+
+configure({
+    "output": {
+        "output_dir": "my_analysis"
+    },
+    "sentiment_analyze": {
+        "positive_threshold": 0.1,
+        "negative_threshold": -0.1
+    },
+    "model": {
+        "use_gpu": True
+    }
+})
+```
+
+## Структура результатов анализа
+
+Результат анализа (`AnalysisResult`) содержит:
+
+- `metrics`: словарь с числовыми метриками и другими результатами анализа
+- `figures`: словарь с путями к сохраненным визуализациям
+- `summary`: текстовое резюме результатов анализа
+
+## Конфигурация
+
+Библиотека использует конфигурационный файл в формате YAML. Конфигурация по умолчанию находится в `configs/default_config.yaml`. Вы можете изменить параметры, используя функцию `configure()` или создав свой конфигурационный файл.
+
+## Логирование
+
+Novel Analyser поддерживает настраиваемое логирование, которое можно сконфигурировать под ваши потребности:
+
+```python
+from novel_analyser.utils.logging import configure_logging
+import logging
+
+# Настройка логирования из конфиг-файла
+configure_logging("path/to/logging_config.yaml")
+
+# Получение логгера для вашего модуля
+logger = logging.getLogger("your_module_name")
+
+# Использование логгера
+...
+```
+
+Библиотека поставляется с конфигурационным файлом логгирования по умолчанию `configs/logging_config.yaml`.
+
+## Расширяемость
+
+Novel Analyser спроектирован с учетом возможности расширения. Вы можете создавать собственные компоненты парсинга и обработки сюжета для различных аспектов анализа, не меняя основной код библиотеки.
+
+### Собственные парсеры текста (можно Renpy, можно Snoflake и другие)
+
+Для создания собственного парсера текста необходимо реализовать интерфейс `BaseParser`:
+
+```python
+from novel_analyser.core.interfaces.parser import BaseParser
+from typing import Dict, List
+
+class MyCustomParser(BaseParser):
+    """Мой собственный парсер текста в формате X."""
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        # Инициализация парсера с дополнительными параметрами
+        
+    def parse_blocks(self, text: str, raw_style: bool = False) -> List[str]:
+        """
+        Разбирает текст на блоки.
+        
+        Args:
+            text: Исходный текст для разбора
+            raw_style: Флаг для сохранения блоков в сыром виде
+            
+        Returns:
+            Список текстовых блоков
+        """
+        # Ваша логика парсинга текста на блоки
+        blocks = []
+        # ...
+        return blocks
+        
+    def parse_character_dialogues(self, blocks: List[str]) -> Dict[str, List[str]]:
+        """
+        Извлекает диалоги персонажей из блоков текста.
+        
+        Args:
+            blocks: Список текстовых блоков
+            
+        Returns:
+            Словарь с именами персонажей и их репликами
+        """
+        dialogues = {}
+        # Ваша логика извлечения диалогов
+        # ...
+        return dialogues
+        
+    def extract_sentences(self, text: str) -> List[str]:
+        """
+        Извлекает предложения из текста.
+        
+        Args:
+            text: Исходный текст
+            
+        Returns:
+            Список предложений
+        """
+        # Ваша логика извлечения предложений
+        # ...
+        return sentences
+```
+
+### Собственные обработчики эмоциональной окраски
+
+Если хотите добавить свою модель для анализа настроения текста, то велкам. Для создания собственного обработчика эмоциональной окраски текста необходимо реализовать интерфейс `BaseSentimentProcessor`:
+
+```python
+from novel_analyser.core.interfaces.sentiment import BaseSentimentProcessor
+from typing import List, Literal
+
+class MyCustomSentimentProcessor(BaseSentimentProcessor):
+    """Мой собственный обработчик эмоциональной окраски текста."""
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        # Инициализация обработчика с дополнительными параметрами
+        
+    def get_sentiment(self, text: str) -> float:
+        """
+        Вычисляет эмоциональную оценку для текста.
+        
+        Args:
+            text: Текст для анализа
+            
+        Returns:
+            Оценка эмоциональной окраски (от -1 до 1)
+        """
+        # Ваша логика оценки эмоциональной окраски
+        # ...
+        return sentiment
+        
+    def analyze_long_text(
+        self,
+        text: str,
+        weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
+    ) -> float:
+        """
+        Анализирует длинный текст, разбивая его на фрагменты.
+        
+        Args:
+            text: Текст для анализа
+            weighting_strategy: Стратегия взвешивания фрагментов
+            
+        Returns:
+            Итоговая оценка эмоциональной окраски
+        """
+        # Ваша логика анализа длинного текста
+        # ...
+        return overall_sentiment
+        
+    def split_text_into_chunks(
+        self, text: str, max_length: int, overlap: int
+    ) -> List[str]:
+        """
+        Разделяет длинный текст на перекрывающиеся фрагменты.
+        
+        Args:
+            text: Исходный текст
+            max_length: Максимальная длина фрагмента в токенах
+            overlap: Количество перекрывающихся токенов между фрагментами
+            
+        Returns:
+            Список фрагментов текста
+        """
+        # Ваша логика разделения текста на фрагменты
+        # ...
+        return chunks
+```
+
+### Регистрация собственных компонентов
+
+После создания собственного компонента его необходимо зарегистрировать в системе:
+
+```python
+from novel_analyser.core.plugins import get_parser_registry, get_sentiment_processor_registry
+from my_module import MyCustomParser, MyCustomSentimentProcessor
+
+# Регистрация собственного парсера
+parser_registry = get_parser_registry()
+parser_registry.register("MyCustomParser", MyCustomParser)
+
+# Регистрация собственного обработчика эмоциональной окраски
+sentiment_registry = get_sentiment_processor_registry()
+sentiment_registry.register("MyCustomSentimentProcessor", MyCustomSentimentProcessor)
+
+# Настройка конфигурации для использования ваших компонентов
+from novel_analyser import configure
+
+configure({
+    "parser": {
+        "parser_class": "my_module.MyCustomParser",
+        "args": {
+            "your_custom_param": "value"
+        }
+    },
+    "sentiment": {
+        "processor_class": "my_module.MyCustomSentimentProcessor",
+        "args": {
+            "your_custom_param": "value"
+        }
+    }
+})
+```
+
+### Создание собственных анализаторов
+
+Вы также можете создавать полностью новые анализаторы, наследуясь от базового класса `BaseAnalyser`:
+
+```python
+from novel_analyser.core.base_analyser import BaseAnalyser, AnalysisResult
+from typing import List, Optional
+
+class MyCustomAnalyser(BaseAnalyser):
+    """Мой собственный анализатор для XYZ."""
+    
+    def __init__(self, config=None):
+        super().__init__(config)
+        # Дополнительная инициализация
+        
+    def analyse(self, blocks: List[str]) -> AnalysisResult:
+        """
+        Выполняет анализ текстовых блоков.
+        
+        Args:
+            blocks: Список текстовых блоков для анализа
+            
+        Returns:
+            Результат анализа
+        """
+        result = AnalysisResult()
+        
+        # Ваша логика анализа
+        # ...
+        
+        # Заполняем метрики
+        result.metrics.update({
+            "my_metric_1": value1,
+            "my_metric_2": value2,
+        })
+        
+        # Заполняем пути к сохраненным изображениям
+        result.figures.update({
+            "my_plot": self.save_figure("my_custom_plot.png"),
+        })
+        
+        # Заполняем текстовое резюме
+        result.summary = "Мой анализ:\n"
+        result.summary += f"  Метрика 1: {value1}\n"
+        result.summary += f"  Метрика 2: {value2}\n"
+        
+        return result
+```
+
+## Примеры визуализаций
+
+Библиотека генерирует различные визуализации:
+
+- Гистограммы распределения времени чтения, эмоциональной окраски и др.
+- Круговые диаграммы распределения эмоциональной окраски
+- Графики для определения оптимального количества тем и кластеров
+- Диаграммы рассеяния для визуализации кластеров и тем
+- Столбчатые диаграммы для анализа персонажей
+
+## Автор
+
+Максим
+
+## Содействие
+
+Вклады в проект приветствуются! Если у вас есть предложения или вы нашли ошибку, пожалуйста, создайте issue или pull request.
