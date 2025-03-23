@@ -12,8 +12,8 @@ from sklearn.manifold import TSNE
 
 from novel_analyser.core.base_analyser import BaseAnalyser, AnalysisResult
 from novel_analyser.core.config import AnalyserConfig
-from novel_analyser.core.parser import extract_all_sentences
-from novel_analyser.utils.embedding import get_text_embeddings
+from novel_analyser.core.interfaces.embedding import BaseEmbeddingEncoder
+from novel_analyser.core.interfaces.parser import BaseParser
 from novel_analyser.utils.plot import save_elbow_curve, save_embedding_scatter
 
 
@@ -22,14 +22,23 @@ class ClusteringAnalyser(BaseAnalyser):
     Класс для кластеризации текста на основе семантических эмбеддингов.
     """
 
-    def __init__(self, config: Optional[AnalyserConfig] = None):
+    def __init__(
+        self,
+        text_parser: BaseParser,
+        embedding_encoder: BaseEmbeddingEncoder,
+        config: Optional[AnalyserConfig] = None,
+    ):
         """
         Инициализирует анализатор кластеризации.
 
         Args:
+            text_parser: Парсер для извлечения текстовых блоков
+            embedding_encoder: Процессор для получения эмбеддингов
             config: Конфигурация анализатора
         """
         super().__init__(config)
+        self.text_parser = text_parser
+        self.embedding_encoder = embedding_encoder
 
     def analyse(self, blocks: List[str]) -> AnalysisResult:
         """
@@ -44,14 +53,10 @@ class ClusteringAnalyser(BaseAnalyser):
         result = AnalysisResult()
 
         # Получаем эмбеддинги для блоков
-        block_embeddings = get_text_embeddings(
-            blocks,
-            model_name=self.config.model.embedding_model,
-            device=self.config.model.device,
-        )
+        block_embeddings = self.embedding_encoder.encode(blocks)
 
         # Извлекаем предложения для кластеризации
-        sentences = extract_all_sentences(blocks)
+        sentences = self.text_parser.extract_all_sentences(blocks)
 
         # Кластеризуем блоки
         (
@@ -116,11 +121,7 @@ class ClusteringAnalyser(BaseAnalyser):
 
         # Если есть предложения, кластеризуем их тоже
         if sentences:
-            sentence_embeddings = get_text_embeddings(
-                sentences,
-                model_name=self.config.model.embedding_model,
-                device=self.config.model.device,
-            )
+            sentence_embeddings = self.embedding_encoder.encode(sentences)
 
             (
                 optimal_k_sent,
@@ -208,10 +209,10 @@ class ClusteringAnalyser(BaseAnalyser):
         return result
 
     def find_optimal_clusters(
-            self,
-            embeddings: np.ndarray,
-            max_clusters: Optional[int] = None,
-            threshold: Optional[float] = None,
+        self,
+        embeddings: np.ndarray,
+        max_clusters: Optional[int] = None,
+        threshold: Optional[float] = None,
     ) -> int:
         """
         Находит оптимальное количество кластеров для KMeans кластеризации на основе инерции.
@@ -281,10 +282,10 @@ class ClusteringAnalyser(BaseAnalyser):
         return tsne.fit_transform(embeddings)
 
     def cluster_embeddings(
-            self,
-            embeddings: np.ndarray,
-            max_clusters: int = 10,
-            threshold: float = 0.1,
+        self,
+        embeddings: np.ndarray,
+        max_clusters: int = 10,
+        threshold: float = 0.1,
     ) -> Tuple[int, np.ndarray, np.ndarray, np.ndarray, List[float]]:
         """
         Кластеризация эмбеддингов с использованием KMeans и определение оптимального количества кластеров.

@@ -5,7 +5,9 @@
 которые можно использовать в библиотеке.
 """
 
-from novel_analyser.core.plugins import create_parser
-from novel_analyser.core.plugins.text_parsers.standard_parser import StandardParser
+from novel_analyser.core.plugins import create_text_parser
+from novel_analyser.core.plugins.text_parsers.standard_parser import (
+    StandardParser,
+)
 
-__all__ = ["StandardParser", "create_parser"]
+__all__ = ["StandardParser", "create_text_parser"]

@@ -137,6 +137,28 @@ print(f"Процент положительных блоков: {result.metrics[
 print(f"Процент отрицательных блоков: {result.metrics['neg_ratio'] * 100:.1f}%")
 ```
 
+### Работа с эмбеддингами текста:
+
+```python
+from novel_analyser import EmbeddingProcessor
+
+# Создаем процессор эмбеддингов
+embedding_encoder = EmbeddingProcessor()
+
+# Получаем эмбеддинги для списка текстов
+texts = ["Первый текст", "Второй текст", "Третий текст"]
+embeddings = embedding_encoder.encode(texts)
+
+# Вычисляем схожесть между двумя текстами
+similarity = embedding_encoder.compute_similarity("Кошка спит", "Кот дремлет")
+print(f"Семантическая схожесть: {similarity:.4f}")
+
+# Вычисляем матрицу схожести для списка текстов
+similarity_matrix = embedding_encoder.compute_batch_similarities(texts)
+print("Матрица схожести:")
+print(similarity_matrix)
+```
+
 ### Тематическое моделирование:
 
 ```python
@@ -187,6 +209,12 @@ configure({
     },
     "model": {
         "use_gpu": True
+    },
+    "embedding": {
+        "args": {
+            "model_name": "sentence-transformers/LaBSE",
+            "show_progress_bar": False
+        }
     }
 })
 ```
@@ -245,46 +273,22 @@ class MyCustomParser(BaseParser):
     def parse_blocks(self, text: str, raw_style: bool = False) -> List[str]:
         """
         Разбирает текст на блоки.
-        
-        Args:
-            text: Исходный текст для разбора
-            raw_style: Флаг для сохранения блоков в сыром виде
-            
-        Returns:
-            Список текстовых блоков
         """
-        # Ваша логика парсинга текста на блоки
-        blocks = []
-        # ...
+        # Ваша реализация
         return blocks
         
     def parse_character_dialogues(self, blocks: List[str]) -> Dict[str, List[str]]:
         """
-        Извлекает диалоги персонажей из блоков текста.
-        
-        Args:
-            blocks: Список текстовых блоков
-            
-        Returns:
-            Словарь с именами персонажей и их репликами
+        Извлекает диалоги персонажей.
         """
-        dialogues = {}
-        # Ваша логика извлечения диалогов
-        # ...
+        # Ваша реализация
         return dialogues
         
     def extract_sentences(self, text: str) -> List[str]:
         """
         Извлекает предложения из текста.
-        
-        Args:
-            text: Исходный текст
-            
-        Returns:
-            Список предложений
         """
-        # Ваша логика извлечения предложений
-        # ...
+        # Ваша реализация
         return sentences
 ```
 
@@ -306,15 +310,8 @@ class MyCustomSentimentProcessor(BaseSentimentProcessor):
     def get_sentiment(self, text: str) -> float:
         """
         Вычисляет эмоциональную оценку для текста.
-        
-        Args:
-            text: Текст для анализа
-            
-        Returns:
-            Оценка эмоциональной окраски (от -1 до 1)
         """
-        # Ваша логика оценки эмоциональной окраски
-        # ...
+        # Ваша реализация
         return sentiment
         
     def analyze_long_text(
@@ -324,16 +321,8 @@ class MyCustomSentimentProcessor(BaseSentimentProcessor):
     ) -> float:
         """
         Анализирует длинный текст, разбивая его на фрагменты.
-        
-        Args:
-            text: Текст для анализа
-            weighting_strategy: Стратегия взвешивания фрагментов
-            
-        Returns:
-            Итоговая оценка эмоциональной окраски
         """
-        # Ваша логика анализа длинного текста
-        # ...
+        # Ваша реализация
         return overall_sentiment
         
     def split_text_into_chunks(
@@ -341,18 +330,66 @@ class MyCustomSentimentProcessor(BaseSentimentProcessor):
     ) -> List[str]:
         """
         Разделяет длинный текст на перекрывающиеся фрагменты.
-        
-        Args:
-            text: Исходный текст
-            max_length: Максимальная длина фрагмента в токенах
-            overlap: Количество перекрывающихся токенов между фрагментами
-            
-        Returns:
-            Список фрагментов текста
         """
-        # Ваша логика разделения текста на фрагменты
-        # ...
+        # Ваша реализация
         return chunks
+```
+
+### Собственные обработчики эмбеддингов
+
+Для создания собственного обработчика эмбеддингов текста необходимо реализовать интерфейс `BaseEmbeddingEncoder`:
+
+```python
+from novel_analyser.core.interfaces.embedding import BaseEmbeddingEncoder
+import numpy as np
+from typing import List
+
+class MyCustomEmbeddingProcessor(BaseEmbeddingEncoder):
+    """Мой собственный обработчик эмбеддингов текста."""
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        # Инициализация обработчика с дополнительными параметрами
+        
+    def encode(self, texts: List[str], show_progress: bool = True) -> np.ndarray:
+        """
+        Кодирует тексты в эмбеддинги.
+        """
+        # Ваша реализация
+        return embeddings
+        
+    def get_embedding_dimension(self) -> int:
+        """
+        Возвращает размерность эмбеддингов.
+        """
+        # Ваша реализация (если нужно переопределить метод базового класса)
+        return dimension
+```
+
+### Подключение собственных плагинов
+
+Для использования собственных плагинов нужно указать путь к их классам в конфигурации:
+
+```python
+from novel_analyser import configure
+
+configure({
+    "parser": {
+        "module_path": "your_module.parsers.CustomParser",
+        "args": {
+            "custom_param": "value"
+        }
+    },
+    "sentiment": {
+        "module_path": "your_module.sentiment.CustomSentimentProcessor",
+        "args": {
+            "model_path": "/path/to/model"
+        }
+    },
+    "embedding": {
+        "module_path": "your_module.embedding.CustomEmbeddingProcessor",
+    }
+})
 ```
 
 ### Регистрация собственных компонентов
@@ -376,13 +413,13 @@ from novel_analyser import configure
 
 configure({
     "parser": {
-        "parser_class": "my_module.MyCustomParser",
+        "module_path": "my_module.MyCustomParser",
         "args": {
             "your_custom_param": "value"
         }
     },
     "sentiment": {
-        "processor_class": "my_module.MyCustomSentimentProcessor",
+        "module_path": "my_module.MyCustomSentimentProcessor",
         "args": {
             "your_custom_param": "value"
         }

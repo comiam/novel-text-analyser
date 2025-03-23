@@ -30,7 +30,7 @@ class BasicAnalyser(BaseAnalyser):
         super().__init__(config)
 
     def analyse(
-            self, blocks: List[str], raw_blocks: Optional[List[str]] = None
+        self, blocks: List[str], raw_blocks: Optional[List[str]] = None
     ) -> AnalysisResult:
         """
         Выполняет базовый анализ текстовых блоков.
@@ -145,8 +145,7 @@ class BasicAnalyser(BaseAnalyser):
 
         return result
 
-    @staticmethod
-    def compute_reading_time(block: str, wpm: float = 150.0) -> float:
+    def compute_reading_time(self, block: str, wpm: float = 150.0) -> float:
         """
         Вычисляет время чтения блока в секундах.
 
@@ -157,6 +156,9 @@ class BasicAnalyser(BaseAnalyser):
         Returns:
             Время чтения в секундах
         """
+        if wpm is None:
+            wpm = self.config.analyse.reading_speed_wpm
+
         words: List[str] = [token.text for token in tokenize(block)]
         words_per_sec: float = wpm / 60
         return len(words) / words_per_sec if words else 0.0

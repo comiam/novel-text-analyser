@@ -16,7 +16,7 @@ from transformers import (
 
 # Update import to get sentiment config from the main config module
 from novel_analyser.core.config import get_config
-from novel_analyser.core.interfaces.sentiment import BaseSentimentProcessor
+from novel_analyser.core.interfaces import BaseSentimentProcessor
 from novel_analyser.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,10 +30,10 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
     """
 
     def __init__(
-            self,
-            split_chunk_max_length: int = 512,
-            split_chunk_overlap: int = 50,
-            **kwargs,
+        self,
+        split_chunk_max_length: int = 512,
+        split_chunk_overlap: int = 50,
+        **kwargs,
     ):
         """
         Инициализирует стандартный обработчик эмоциональной окраски.
@@ -121,7 +121,7 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
             return 0.0
 
     def split_text_into_chunks(
-            self, text: str, max_length: int = None, overlap: int = None
+        self, text: str, max_length: int = None, overlap: int = None
     ) -> List[str]:
         """
         Разделяет длинный текст на перекрывающиеся фрагменты.
@@ -212,9 +212,9 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
         return chunks
 
     def analyze_long_text(
-            self,
-            text: str,
-            weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
+        self,
+        text: str,
+        weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
     ) -> float:
         """
         Анализирует длинный текст, разбивая его на фрагменты и объединяя результаты.
@@ -288,7 +288,7 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
                 if weighting_strategy == "narrative":
                     # Параболическая функция с пиком в начале и конце текста
                     position_factor = 0.8 + 0.2 * (
-                            2 * (normalized_position - 0.5) ** 2
+                        2 * (normalized_position - 0.5) ** 2
                     )
                 elif weighting_strategy == "speech":
                     # Линейно убывающая функция

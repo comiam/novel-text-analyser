@@ -11,7 +11,7 @@ from novel_analyser.analysers.basic import BasicAnalyser
 from novel_analyser.analysers.sentiment import SentimentAnalyser
 from novel_analyser.core.base_analyser import BaseAnalyser, AnalysisResult
 from novel_analyser.core.config import AnalyserConfig
-from novel_analyser.core.parser import parse_character_dialogues
+from novel_analyser.core.interfaces.parser import BaseParser
 from novel_analyser.utils.plot import save_bar_chart
 
 
@@ -20,16 +20,26 @@ class CharacterAnalyser(BaseAnalyser):
     Класс для анализа персонажей и их диалогов.
     """
 
-    def __init__(self, config: Optional[AnalyserConfig] = None):
+    def __init__(
+        self,
+        text_parser: BaseParser,
+        sentiment_analyser: SentimentAnalyser,
+        basic_analyser: BasicAnalyser,
+        config: Optional[AnalyserConfig] = None,
+    ):
         """
         Инициализирует анализатор персонажей.
 
         Args:
+            text_parser: Парсер для извлечения диалогов из файла
+            sentiment_analyser: Анализатор настроений
+            basic_analyser: Базовый анализатор
             config: Конфигурация анализатора
         """
         super().__init__(config)
-        self.sentiment_analyser = SentimentAnalyser(config)
-        self.basic_analyser = BasicAnalyser(config)
+        self.sentiment_analyser = sentiment_analyser
+        self.basic_analyser = basic_analyser
+        self.text_parser = text_parser
 
     def analyse(self, blocks: List[str]) -> AnalysisResult:
         """
@@ -44,7 +54,9 @@ class CharacterAnalyser(BaseAnalyser):
         result = AnalysisResult()
 
         # Извлекаем диалоги персонажей
-        character_dialogues = parse_character_dialogues(blocks)
+        character_dialogues = self.text_parser.parse_character_dialogues(
+            blocks
+        )
 
         if not character_dialogues:
             result.summary = "Анализ персонажей:\n  В тексте не обнаружено диалогов персонажей.\n"
@@ -179,7 +191,7 @@ class CharacterAnalyser(BaseAnalyser):
         return result
 
     def compute_character_metrics(
-            self, character_dialogues: Dict[str, List[str]], total_blocks: int
+        self, character_dialogues: Dict[str, List[str]], total_blocks: int
     ) -> Tuple[
         Dict[str, int], Dict[str, float], Dict[str, float], Dict[str, float]
     ]:
@@ -236,7 +248,7 @@ class CharacterAnalyser(BaseAnalyser):
         )
 
     def analyze_character_sentiments(
-            self, character_dialogues: Dict[str, List[str]]
+        self, character_dialogues: Dict[str, List[str]]
     ) -> Dict[str, float]:
         """
         Анализирует настроение персонажей на основе их реплик.

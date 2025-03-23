@@ -5,6 +5,10 @@
 все подключаемые модули.
 """
 
+from novel_analyser.core.interfaces.embedding import (
+    BaseEmbeddingEncoder,
+    EmbeddingProcessorProtocol,
+)
 from novel_analyser.core.interfaces.models import (
     ModelFactory,
     PydanticModelProtocol,
@@ -20,6 +24,8 @@ __all__ = [
     "ParserProtocol",
     "BaseSentimentProcessor",
     "SentimentProcessorProtocol",
+    "BaseEmbeddingEncoder",
+    "EmbeddingProcessorProtocol",
     "PydanticModelProtocol",
     "ModelFactory",
 ]

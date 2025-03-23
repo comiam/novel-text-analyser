@@ -9,7 +9,7 @@ import numpy as np
 
 from novel_analyser.core.base_analyser import BaseAnalyser, AnalysisResult
 from novel_analyser.core.config import AnalyserConfig, get_config
-from novel_analyser.core.plugins import create_sentiment_processor
+from novel_analyser.core.interfaces.sentiment import BaseSentimentProcessor
 from novel_analyser.utils.plot import (
     save_sentiment_histogram,
     save_sentiment_pie_chart,
@@ -22,7 +22,11 @@ class SentimentAnalyser(BaseAnalyser):
     Класс для анализа эмоциональной окраски текста с использованием трансформеров.
     """
 
-    def __init__(self, config: Optional[AnalyserConfig] = None):
+    def __init__(
+        self,
+        sentiment_processor: BaseSentimentProcessor,
+        config: Optional[AnalyserConfig] = None,
+    ):
         """
         Инициализирует анализатор настроений.
 
@@ -32,14 +36,14 @@ class SentimentAnalyser(BaseAnalyser):
         super().__init__(config)
 
         # Создаем обработчик эмоциональной окраски
-        self.processor = create_sentiment_processor()
+        self.processor = sentiment_processor
         # Get sentiment config from the main config
         self.sentiment_analyze_config = get_config().sentiment_analyze
 
     def analyse(
-            self,
-            blocks: List[str],
-            weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
+        self,
+        blocks: List[str],
+        weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
     ) -> AnalysisResult:
         """
         Выполняет анализ эмоциональной окраски текстовых блоков.
@@ -164,9 +168,9 @@ class SentimentAnalyser(BaseAnalyser):
         return result
 
     def analyze_long_text(
-            self,
-            text: str,
-            weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
+        self,
+        text: str,
+        weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
     ) -> float:
         """
         Анализирует длинный текст, разбивая его на фрагменты и объединяя результаты.

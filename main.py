@@ -9,9 +9,10 @@ from typing import Dict, Any, Optional, List
 
 from pydantic import BaseModel, Field
 
-from novel_analyser.api.analyser import TextAnalyser
+from novel_analyser.analysers import RootAnalyser
 from novel_analyser.core.config import configure, load_config_from_file
 from novel_analyser.utils.logging import configure_logging, get_logger
+from novel_analyser.utils.paths import get_absolute_path
 
 
 class CliArguments(BaseModel):
@@ -190,23 +191,16 @@ def main():
 
     # Инициализируем анализатор
     logger.info("Инициализация анализатора текста")
-    analyser = TextAnalyser()
+    analyser = RootAnalyser()
 
     # Запускаем анализ
-    logger.info(f"Анализ файла: {cli_args.input_file}")
+    logger.info(f"Анализ файла: {get_absolute_path(cli_args.input_file)}")
     result = analyser.analyse_file(
         cli_args.input_file, cli_args.output, cli_args.analyses
     )
 
-    # Проверяем, является ли путь абсолютным, если нет - преобразуем в абсолютный
-    output_path = (
-        cli_args.output
-        if os.path.isabs(cli_args.output)
-        else os.path.abspath(cli_args.output)
-    )
-
     logger.info(
-        f"Анализ успешно выполнен. Результаты сохранены в директории: {output_path}"
+        f"Анализ успешно выполнен. Результаты сохранены в директории: {get_absolute_path(cli_args.output)}"
     )
 
     # Выводим краткую сводку

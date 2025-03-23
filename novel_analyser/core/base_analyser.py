@@ -87,7 +87,7 @@ class BaseAnalyser(ABC):
         pass
 
     def save_figure(
-            self, figure_name: str, subdirectory: Optional[str] = None
+        self, figure_name: str, subdirectory: Optional[str] = None
     ) -> str:
         """
         Создает полный путь для сохранения изображения с учетом конфигурации.

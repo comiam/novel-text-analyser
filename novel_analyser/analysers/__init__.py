@@ -11,8 +11,10 @@ from novel_analyser.analysers.repetition import RepetitionAnalyser
 from novel_analyser.analysers.semantic import SemanticAnalyser
 from novel_analyser.analysers.sentiment import SentimentAnalyser
 from novel_analyser.analysers.topic import TopicAnalyser
+from novel_analyser.analysers.analyser import RootAnalyser
 
 __all__ = [
+    "RootAnalyser",
     "BasicAnalyser",
     "ReadabilityAnalyser",
     "NarrativeAnalyser",

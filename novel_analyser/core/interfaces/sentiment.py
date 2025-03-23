@@ -29,9 +29,9 @@ class SentimentProcessorProtocol(Protocol):
         ...
 
     def analyze_long_text(
-            self,
-            text: str,
-            weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
+        self,
+        text: str,
+        weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
     ) -> float:
         """
         Анализирует длинный текст, разбивая его на фрагменты и объединяя результаты.
@@ -49,7 +49,7 @@ class SentimentProcessorProtocol(Protocol):
         ...
 
     def split_text_into_chunks(
-            self, text: str, max_length: int, overlap: int
+        self, text: str, max_length: int, overlap: int
     ) -> List[str]:
         """
         Разделяет длинный текст на перекрывающиеся фрагменты.
@@ -92,9 +92,9 @@ class BaseSentimentProcessor(abc.ABC):
 
     @abc.abstractmethod
     def analyze_long_text(
-            self,
-            text: str,
-            weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
+        self,
+        text: str,
+        weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
     ) -> float:
         """
         Анализирует длинный текст, разбивая его на фрагменты и объединяя результаты.
@@ -113,7 +113,7 @@ class BaseSentimentProcessor(abc.ABC):
 
     @abc.abstractmethod
     def split_text_into_chunks(
-            self, text: str, max_length: int, overlap: int
+        self, text: str, max_length: int, overlap: int
     ) -> List[str]:
         """
         Разделяет длинный текст на перекрывающиеся фрагменты.

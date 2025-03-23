@@ -30,7 +30,7 @@ class ParserProtocol(Protocol):
         ...
 
     def parse_character_dialogues(
-            self, blocks: List[str]
+        self, blocks: List[str]
     ) -> Dict[str, List[str]]:
         """
         Извлекает диалоги персонажей из блоков текста.
@@ -96,7 +96,7 @@ class BaseParser(abc.ABC):
 
     @abc.abstractmethod
     def parse_character_dialogues(
-            self, blocks: List[str]
+        self, blocks: List[str]
     ) -> Dict[str, List[str]]:
         """
         Извлекает диалоги персонажей из блоков текста.

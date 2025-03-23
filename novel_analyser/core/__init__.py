@@ -10,10 +10,12 @@ from novel_analyser.core.config import (
     SentimentAnalyzeConfig,
 )
 from novel_analyser.core.plugins import (
-    create_parser,
+    create_text_parser,
     create_sentiment_processor,
+    create_embedding_encoder,
     get_parser_registry,
     get_sentiment_processor_registry,
+    get_embedding_encoder_registry,
 )
 
 __all__ = [
@@ -26,8 +28,10 @@ __all__ = [
     # Конфигурация анализа настроений
     "SentimentAnalyzeConfig",
     # Управление плагинами
-    "create_parser",
+    "create_text_parser",
     "create_sentiment_processor",
+    "create_embedding_encoder",
     "get_parser_registry",
     "get_sentiment_processor_registry",
+    "get_embedding_encoder_registry",
 ]

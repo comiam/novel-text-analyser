@@ -15,8 +15,8 @@ from razdel import tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from novel_analyser.core.config import get_config
-from novel_analyser.core.interfaces.parser import BaseParser
-from novel_analyser.utils.stopwords import get_stop_words
+from novel_analyser.core.interfaces import BaseParser
+from novel_analyser.utils import get_stop_words
 
 IGNORE_BLOCK_NAMES: Set[str] = {
     "StoryData",
@@ -50,11 +50,11 @@ class StandardParser(BaseParser):
     """
 
     def __init__(
-            self,
-            character_name_uppercase: bool = True,
-            ignore_html_comments: bool = True,
-            exclude_frequent_words_count: int = 30,
-            **kwargs
+        self,
+        character_name_uppercase: bool = True,
+        ignore_html_comments: bool = True,
+        exclude_frequent_words_count: int = 30,
+        **kwargs
     ):
         """
         Инициализирует стандартный парсер.
@@ -89,8 +89,8 @@ class StandardParser(BaseParser):
                 if not block:
                     continue
                 if any(
-                        ignore_name in block.name
-                        for ignore_name in IGNORE_BLOCK_NAMES
+                    ignore_name in block.name
+                    for ignore_name in IGNORE_BLOCK_NAMES
                 ):
                     continue
                 raw_text: str = "\n".join(block.lines)
@@ -123,7 +123,7 @@ class StandardParser(BaseParser):
         return filtered_blocks
 
     def parse_character_dialogues(
-            self, blocks: List[str]
+        self, blocks: List[str]
     ) -> Dict[str, List[str]]:
         """
         Парсит блоки текста и извлекает реплики персонажей.
@@ -157,10 +157,10 @@ class StandardParser(BaseParser):
                 # Если строка полностью в верхнем регистре, считаем её потенциальным именем персонажа
                 # Игнорируем HTML-комментарии и строки с #
                 if (
-                        line
-                        and line.isupper()
-                        and not line.startswith("#")
-                        and not "<!--" in line
+                    line
+                    and line.isupper()
+                    and not line.startswith("#")
+                    and not "<!--" in line
                 ):
                     potential_character = line
                     # Удаляем комментарии, если они есть
@@ -173,9 +173,9 @@ class StandardParser(BaseParser):
                     dialogue = []
                     j = i + 1
                     while (
-                            j < len(lines)
-                            and lines[j].strip()
-                            and not lines[j].strip().isupper()
+                        j < len(lines)
+                        and lines[j].strip()
+                        and not lines[j].strip().isupper()
                     ):
                         dialogue_line = lines[j].strip()
                         # Удаляем HTML-комментарии
@@ -238,8 +238,8 @@ class StandardParser(BaseParser):
         for line in content.splitlines():
             if line.startswith("::"):
                 if (
-                        current_block_name
-                        and current_block_name not in ignore_names
+                    current_block_name
+                    and current_block_name not in ignore_names
                 ):
                     blocks[current_block_name] = Block(
                         name=current_block_name, lines=current_block_lines
@@ -290,7 +290,7 @@ class StandardParser(BaseParser):
         block_text: str = "\n".join(block.lines)
 
         if any(
-                ignore_name in block.name for ignore_name in IGNORE_BLOCK_NAMES
+            ignore_name in block.name for ignore_name in IGNORE_BLOCK_NAMES
         ):
             return ""
 
@@ -300,10 +300,10 @@ class StandardParser(BaseParser):
         return block_text
 
     def _lemmatize_and_tokenize_words(
-            self,
-            stop_words: Set[str],
-            morph: pymorphy3.MorphAnalyzer,
-            block_text: str,
+        self,
+        stop_words: Set[str],
+        morph: pymorphy3.MorphAnalyzer,
+        block_text: str,
     ) -> List[str]:
         """
         Лемматизирует и токенизирует слова в заданном тексте, исключая стоп-слова.
@@ -324,8 +324,8 @@ class StandardParser(BaseParser):
             morph.parse(token)[0].normal_form
             for token in tokens
             if token
-               and token not in stop_words
-               or morph.parse(token)[0].normal_form not in stop_words
+            and token not in stop_words
+            or morph.parse(token)[0].normal_form not in stop_words
         ]
 
         return lemmas
@@ -350,7 +350,7 @@ class StandardParser(BaseParser):
             return []
 
     def _exclude_most_frequent_words(
-            self, cleaned_blocks: List[str]
+        self, cleaned_blocks: List[str]
     ) -> List[str]:
         """
         Исключает наиболее часто встречающиеся слова из списка текстовых блоков.

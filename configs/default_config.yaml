@@ -83,13 +83,24 @@ character:
     - "ява"
     - "ян"
 
+# Конфигурация энкодера эмбеддингов
+embedding:
+  module_path: null  # Полный путь к пользовательскому классу обработчика (например, "your_module.YourEmbeddingProcessor")
+
 # Конфигурация парсера текста
 parser:
-  parser_class: null  # Полный путь к пользовательскому классу парсера (например, "your_module.YourParserClass")
+  module_path: null  # Полный путь к пользовательскому классу парсера (например, "your_module.YourParserClass")
   args:
     character_name_uppercase: true  # Считать строку в верхнем регистре именем персонажа
     ignore_html_comments: true  # Игнорировать HTML-комментарии
     exclude_frequent_words_count: 30  # Количество наиболее частых слов для исключения
+
+# Конфигурация анализа настроений
+sentiment:
+  module_path: null  # Полный путь к пользовательскому классу обработчика (например, "your_module.YourSentimentProcessor")
+  args:
+    split_chunk_max_length: 512  # Максимальная длина чанка при разделении текста
+    split_chunk_overlap: 50  # Количество перекрывающихся токенов между чанками
 
 # Прямая конфигурация порогов и перцентилей для анализа настроений
 sentiment_analyze_config:
@@ -97,13 +108,6 @@ sentiment_analyze_config:
   negative_threshold: -0.05  # Порог для определения отрицательного настроения
   sentiment_percentile_lower: 5  # Нижний перцентиль для фильтрации выбросов
   sentiment_percentile_upper: 95  # Верхний перцентиль для фильтрации выбросов
-
-# Конфигурация анализа настроений
-sentiment:
-  processor_class: null  # Полный путь к пользовательскому классу обработчика (например, "your_module.YourSentimentProcessor")
-  args:
-    split_chunk_max_length: 512  # Максимальная длина чанка при разделении текста
-    split_chunk_overlap: 50  # Количество перекрывающихся токенов между чанками
 
 # Конфигурация тематического моделирования
 topic:

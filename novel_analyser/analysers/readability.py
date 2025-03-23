@@ -14,15 +14,20 @@ class ReadabilityAnalyser(BaseAnalyser):
     Класс для анализа читаемости текста.
     """
 
-    def __init__(self, config: Optional[AnalyserConfig] = None):
+    def __init__(
+        self,
+        text_processor: TextProcessor,
+        config: Optional[AnalyserConfig] = None,
+    ):
         """
         Инициализирует анализатор читаемости.
 
         Args:
+            text_processor: Обработчик текста
             config: Конфигурация анализатора
         """
         super().__init__(config)
-        self.text_processor = TextProcessor()
+        self.text_processor = text_processor
 
     def analyse(self, blocks: List[str]) -> AnalysisResult:
         """
@@ -243,18 +248,18 @@ class ReadabilityAnalyser(BaseAnalyser):
 
         # Базовый индекс, комбинирующий среднюю длину предложения и слова
         base_index: float = (
-                metrics["avg_words_per_sentence"]
-                * metrics["avg_word_length"]
-                * (1 + ratio_long)
+            metrics["avg_words_per_sentence"]
+            * metrics["avg_word_length"]
+            * (1 + ratio_long)
         )
 
         # Композитный индекс
         composite_index: float = (
-                base_index * (1 + lexical["type_token_ratio"])
-                + 0.3 * lexical["readability_index"]
-                + 0.2 * verb_ratio
-                + 0.1 * polysyllabic_word_ratio
-                + 0.1 * adj_ratio
+            base_index * (1 + lexical["type_token_ratio"])
+            + 0.3 * lexical["readability_index"]
+            + 0.2 * verb_ratio
+            + 0.1 * polysyllabic_word_ratio
+            + 0.1 * adj_ratio
         )
 
         if composite_index < 40:

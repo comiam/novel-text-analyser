@@ -129,6 +129,7 @@ class PluginRegistry(Generic[T]):
 # Глобальные реестры для различных типов плагинов
 _parser_registry = None
 _sentiment_processor_registry = None
+_embedding_encoder_registry = None
 
 
 def get_parser_registry():
@@ -143,7 +144,9 @@ def get_parser_registry():
     if _parser_registry is None:
         # Import here to avoid circular imports
         from novel_analyser.core.interfaces.parser import BaseParser
-        from novel_analyser.core.plugins.text_parsers.standard_parser import StandardParser
+        from novel_analyser.core.plugins.text_parsers.standard_parser import (
+            StandardParser,
+        )
 
         _parser_registry = PluginRegistry(BaseParser, StandardParser)
 
@@ -161,7 +164,9 @@ def get_sentiment_processor_registry():
 
     if _sentiment_processor_registry is None:
         # Import here to avoid circular imports
-        from novel_analyser.core.interfaces.sentiment import BaseSentimentProcessor
+        from novel_analyser.core.interfaces.sentiment import (
+            BaseSentimentProcessor,
+        )
         from novel_analyser.core.plugins.sentiment.standard_processor import (
             StandardSentimentProcessor,
         )
@@ -173,7 +178,32 @@ def get_sentiment_processor_registry():
     return _sentiment_processor_registry
 
 
-def create_parser():
+def get_embedding_encoder_registry():
+    """
+    Получает реестр обработчиков эмбеддингов.
+
+    Returns:
+        Реестр обработчиков эмбеддингов
+    """
+    global _embedding_encoder_registry
+
+    if _embedding_encoder_registry is None:
+        # Import here to avoid circular imports
+        from novel_analyser.core.interfaces.embedding import (
+            BaseEmbeddingEncoder,
+        )
+        from novel_analyser.core.plugins.embedding.standard_processor import (
+            StandardEmbeddingProcessor,
+        )
+
+        _embedding_encoder_registry = PluginRegistry(
+            BaseEmbeddingEncoder, StandardEmbeddingProcessor
+        )
+
+    return _embedding_encoder_registry
+
+
+def create_text_parser():
     """
     Создает экземпляр парсера текста на основе конфигурации.
 
@@ -184,9 +214,9 @@ def create_parser():
     from novel_analyser.core.config import get_config
 
     config = get_config()
-    parser_class_path = (
-        config.parser.parser_class
-        if hasattr(config.parser, "parser_class")
+    module_path_path = (
+        config.parser.module_path
+        if hasattr(config.parser, "module_path")
         else None
     )
 
@@ -197,7 +227,7 @@ def create_parser():
     )
 
     return get_parser_registry().create_instance(
-        parser_class_path, **parser_args
+        module_path_path, **parser_args
     )
 
 
@@ -212,9 +242,9 @@ def create_sentiment_processor():
     from novel_analyser.core.config import get_config
 
     config = get_config()
-    processor_class_path = (
-        config.sentiment.processor_class
-        if hasattr(config.sentiment, "processor_class")
+    module_path_path = (
+        config.sentiment.module_path
+        if hasattr(config.sentiment, "module_path")
         else None
     )
 
@@ -225,5 +255,33 @@ def create_sentiment_processor():
     )
 
     return get_sentiment_processor_registry().create_instance(
-        processor_class_path, **processor_args
+        module_path_path, **processor_args
+    )
+
+
+def create_embedding_encoder():
+    """
+    Создает экземпляр обработчика эмбеддингов на основе конфигурации.
+
+    Returns:
+        Экземпляр обработчика эмбеддингов
+    """
+    # Import here to avoid circular imports
+    from novel_analyser.core.config import get_config
+
+    config = get_config()
+    module_path_path = (
+        config.embedding.module_path
+        if hasattr(config.embedding, "module_path")
+        else None
+    )
+
+    processor_args = (
+        config.embedding.args.model_dump()
+        if hasattr(config.embedding, "args")
+        else {}
+    )
+
+    return get_embedding_encoder_registry().create_instance(
+        module_path_path, **processor_args
     )

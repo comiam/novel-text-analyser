@@ -7,16 +7,17 @@ from typing import List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
+from novel_analyser.core.config import get_config
 from novel_analyser.utils.stat import optimal_bins
 
 
 def save_histogram(
-        data: List[float],
-        title: str,
-        xlabel: str,
-        ylabel: str,
-        save_path: str,
-        nbins: Optional[int] = None,
+    data: List[float],
+    title: str,
+    xlabel: str,
+    ylabel: str,
+    save_path: str,
+    nbins: Optional[int] = None,
 ) -> None:
     """
     Строит и сохраняет гистограмму с оптимальным числом бинов.
@@ -44,7 +45,7 @@ def save_histogram(
 
 
 def save_elbow_curve(
-        inertias: List[float], max_clusters: int, save_path: str
+    inertias: List[float], max_clusters: int, save_path: str
 ) -> None:
     """
     Строит и сохраняет график elbow-curve для кластеризации.
@@ -68,7 +69,7 @@ def save_elbow_curve(
 
 
 def save_embedding_scatter(
-        embeddings_2d: np.ndarray, labels: np.ndarray, title: str, save_path: str
+    embeddings_2d: np.ndarray, labels: np.ndarray, title: str, save_path: str
 ) -> None:
     """
     Сохраняет диаграмму рассеяния для двумерных векторов эмбеддингов.
@@ -129,10 +130,10 @@ def save_sentiment_histogram(sentiments: List[float], save_path: str) -> None:
 
 
 def save_sentiment_pie_chart(
-        sentiments: List[float],
-        save_path: str,
-        positive_threshold: Optional[float] = None,
-        negative_threshold: Optional[float] = None,
+    sentiments: List[float],
+    save_path: str,
+    positive_threshold: Optional[float] = None,
+    negative_threshold: Optional[float] = None,
 ) -> None:
     """
     Сохраняет круговую диаграмму распределения эмоционального окраса блоков.
@@ -144,15 +145,12 @@ def save_sentiment_pie_chart(
         negative_threshold: Порог для определения отрицательного настроения
     """
     if positive_threshold is None or negative_threshold is None:
-        # Получаем процессор и используем его пороги
-        from novel_analyser.core.plugins.sentiment import create_sentiment_processor
-
-        processor = create_sentiment_processor()
+        config = get_config()
 
         if positive_threshold is None:
-            positive_threshold = processor.positive_threshold
+            positive_threshold = config.sentiment_analyze.positive_threshold
         if negative_threshold is None:
-            negative_threshold = processor.negative_threshold
+            negative_threshold = config.sentiment_analyze.negative_threshold
 
     pos: int = sum(1 for s in sentiments if s > positive_threshold)
     neg: int = sum(1 for s in sentiments if s < negative_threshold)
@@ -170,13 +168,13 @@ def save_sentiment_pie_chart(
 
 
 def save_bar_chart(
-        labels: List[str],
-        values: List[float],
-        title: str,
-        xlabel: str,
-        ylabel: str,
-        save_path: str,
-        filter_small_values: bool = True,
+    labels: List[str],
+    values: List[float],
+    title: str,
+    xlabel: str,
+    ylabel: str,
+    save_path: str,
+    filter_small_values: bool = True,
 ) -> None:
     """
     Создает и сохраняет столбчатую диаграмму.

@@ -102,7 +102,7 @@ class TextProcessor:
         return pos_counts
 
     def split_text_into_chunks(
-            self, text: str, max_length: int, overlap: int = 50
+        self, text: str, max_length: int, overlap: int = 50
     ) -> List[str]:
         """
         Разделяет длинный текст на перекрывающиеся фрагменты.

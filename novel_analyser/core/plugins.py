@@ -205,9 +205,9 @@ def create_parser():
     from novel_analyser.core.config import get_config
 
     config = get_config()
-    parser_class_path = (
-        config.parser.parser_class
-        if hasattr(config.parser, "parser_class")
+    module_path_path = (
+        config.parser.module_path
+        if hasattr(config.parser, "module_path")
         else None
     )
 
@@ -218,7 +218,7 @@ def create_parser():
     )
 
     return get_parser_registry().create_instance(
-        parser_class_path, **parser_args
+        module_path_path, **parser_args
     )
 
 
@@ -233,9 +233,9 @@ def create_sentiment_processor():
     from novel_analyser.core.config import get_config
 
     config = get_config()
-    processor_class_path = (
-        config.sentiment.processor_class
-        if hasattr(config.sentiment, "processor_class")
+    module_path_path = (
+        config.sentiment.module_path
+        if hasattr(config.sentiment, "module_path")
         else None
     )
 
@@ -246,5 +246,5 @@ def create_sentiment_processor():
     )
 
     return get_sentiment_processor_registry().create_instance(
-        processor_class_path, **processor_args
+        module_path_path, **processor_args
     )

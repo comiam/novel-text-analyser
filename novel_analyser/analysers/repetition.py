@@ -18,15 +18,20 @@ class RepetitionAnalyser(BaseAnalyser):
     Класс для анализа повторяемости и стиля текста.
     """
 
-    def __init__(self, config: Optional[AnalyserConfig] = None):
+    def __init__(
+        self,
+        text_processor: TextProcessor,
+        config: Optional[AnalyserConfig] = None,
+    ):
         """
         Инициализирует анализатор повторяемости.
 
         Args:
+            text_processor: Обработчик текста
             config: Конфигурация анализатора
         """
         super().__init__(config)
-        self.text_processor = TextProcessor()
+        self.text_processor = text_processor
 
     def analyse(self, blocks: List[str]) -> AnalysisResult:
         """
@@ -77,13 +82,13 @@ class RepetitionAnalyser(BaseAnalyser):
 
         # Добавляем интерпретацию
         if (
-                repetition_metrics["repetition_ratio"]
-                > self.config.repetition.high_repetition_threshold
+            repetition_metrics["repetition_ratio"]
+            > self.config.repetition.high_repetition_threshold
         ):
             result.summary += "\n  Высокая повторяемость слов, текст может восприниматься монотонно.\n"
         elif (
-                repetition_metrics["repetition_ratio"]
-                > self.config.repetition.medium_repetition_threshold
+            repetition_metrics["repetition_ratio"]
+            > self.config.repetition.medium_repetition_threshold
         ):
             result.summary += "\n  Средняя повторяемость слов, типичная для большинства текстов.\n"
         else:

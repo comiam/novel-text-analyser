@@ -235,7 +235,7 @@ class ParserArgs(BaseModel):
 class ParserConfig(BaseModel):
     """Конфигурация парсера текста."""
 
-    parser_class: Optional[str] = Field(
+    module_path: Optional[str] = Field(
         default=None,
         description="Полный путь к классу парсера в формате 'module.submodule.ParserClass'",
     )
@@ -273,12 +273,42 @@ class SentimentProcessorArgs(BaseModel):
 class SentimentProcessorConfig(BaseModel):
     """Конфигурация обработчика эмоциональной окраски."""
 
-    processor_class: Optional[str] = Field(
+    module_path: Optional[str] = Field(
         default=None,
         description="Полный путь к классу обработчика в формате 'module.submodule.ProcessorClass'",
     )
     args: SentimentProcessorArgs = Field(
         default_factory=SentimentProcessorArgs,
+        description="Аргументы для обработчика",
+    )
+
+
+class EmbeddingProcessorArgs(BaseModel):
+    """Аргументы для обработчика эмбеддингов."""
+
+    module_path: Optional[str] = Field(
+        default=None,
+        description="Название модели для эмбеддингов",
+    )
+    device: Optional[str] = Field(
+        default=None,
+        description="Устройство для вычислений ('cuda' или 'cpu')",
+    )
+    show_progress_bar: bool = Field(
+        default=True,
+        description="Показывать ли прогресс-бар при кодировании",
+    )
+
+
+class EmbeddingProcessorConfig(BaseModel):
+    """Конфигурация обработчика эмбеддингов."""
+
+    module_path: Optional[str] = Field(
+        default=None,
+        description="Полный путь к классу обработчика в формате 'module.submodule.ProcessorClass'",
+    )
+    args: EmbeddingProcessorArgs = Field(
+        default_factory=EmbeddingProcessorArgs,
         description="Аргументы для обработчика",
     )
 
@@ -295,6 +325,9 @@ class AnalyserConfig(BaseModel):
     character: CharacterConfig = Field(default_factory=CharacterConfig)
     sentiment: SentimentProcessorConfig = Field(
         default_factory=SentimentProcessorConfig
+    )
+    embedding: EmbeddingProcessorConfig = Field(
+        default_factory=EmbeddingProcessorConfig
     )
     sentiment_analyze: SentimentAnalyzeConfig = Field(
         default_factory=SentimentAnalyzeConfig
@@ -314,7 +347,7 @@ class AnalyserConfig(BaseModel):
 
     @classmethod
     def from_yaml_file(
-            cls, file_path: Union[str, pathlib.Path]
+        cls, file_path: Union[str, pathlib.Path]
     ) -> "AnalyserConfig":
         """
         Создает экземпляр класса на основе YAML-файла.
@@ -396,7 +429,7 @@ def configure(new_config: Optional[Dict[str, Any]] = None) -> AnalyserConfig:
 
 
 def load_config_from_file(
-        file_path: Union[str, pathlib.Path],
+    file_path: Union[str, pathlib.Path],
 ) -> AnalyserConfig:
     """
     Загружает конфигурацию из YAML-файла и устанавливает ее как глобальную.

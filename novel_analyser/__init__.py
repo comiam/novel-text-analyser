@@ -4,10 +4,7 @@ Novel Analyser - библиотека для анализа русскоязыч
 
 import pathlib
 
-from novel_analyser.api.analyser import TextAnalyser
-from novel_analyser.api.character import CharacterAnalyser
-from novel_analyser.api.sentiment import SentimentAnalyser
-from novel_analyser.api.topic import TopicModeler
+from novel_analyser.analysers.analyser import RootAnalyser
 from novel_analyser.core.config import (
     get_config,
     configure,
@@ -27,10 +24,7 @@ else:
 
 __version__ = "0.1.0"
 __all__ = [
-    "TextAnalyser",
-    "SentimentAnalyser",
-    "TopicModeler",
-    "CharacterAnalyser",
+    "RootAnalyser",
     "get_config",
     "configure",
     "AnalyserConfig",

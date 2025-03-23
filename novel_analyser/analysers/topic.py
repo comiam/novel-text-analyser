@@ -102,11 +102,11 @@ class TopicAnalyser(BaseAnalyser):
         return result
 
     def find_optimal_number_of_topics(
-            self,
-            blocks: List[str],
-            min_topics: Optional[int] = None,
-            max_topics: Optional[int] = None,
-            n_top_words: Optional[int] = None,
+        self,
+        blocks: List[str],
+        min_topics: Optional[int] = None,
+        max_topics: Optional[int] = None,
+        n_top_words: Optional[int] = None,
     ) -> Tuple[int, Dict[int, List[str]], List[float]]:
         """
         Находит оптимальное количество тем для набора текстовых блоков, используя модель LDA.
@@ -159,7 +159,7 @@ class TopicAnalyser(BaseAnalyser):
             for topic in lda.components_:
                 top_features: List[str] = [
                     feature_names[i]
-                    for i in topic.argsort()[: -n_top_words - 1: -1]
+                    for i in topic.argsort()[: -n_top_words - 1 : -1]
                 ]
                 keywords.append(top_features)
 
@@ -178,7 +178,7 @@ class TopicAnalyser(BaseAnalyser):
         return optimal_n, topic_keywords_flat, perplexities
 
     def perform_topic_modeling(
-            self, blocks: List[str], num_topics: Optional[int] = None
+        self, blocks: List[str], num_topics: Optional[int] = None
     ) -> Dict[str, float]:
         """
         Выполняет тематическое моделирование на основе заданных текстовых блоков.
@@ -212,12 +212,12 @@ class TopicAnalyser(BaseAnalyser):
         return percentages
 
     def save_optimal_topics_plots(
-            self,
-            perplexities: List[float],
-            min_topics: int,
-            max_topics: int,
-            topic_percentages: Dict[str, float],
-            topic_keywords: Dict[int, List[str]],
+        self,
+        perplexities: List[float],
+        min_topics: int,
+        max_topics: int,
+        topic_percentages: Dict[str, float],
+        topic_keywords: Dict[int, List[str]],
     ) -> None:
         """
         Сохраняет графики оптимального количества тем и процентного распределения тем.

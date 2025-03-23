@@ -9,8 +9,8 @@ import numpy as np
 
 from novel_analyser.core.base_analyser import BaseAnalyser, AnalysisResult
 from novel_analyser.core.config import AnalyserConfig
-from novel_analyser.core.parser import extract_all_sentences
-from novel_analyser.utils.embedding import get_text_embeddings
+from novel_analyser.core.interfaces.embedding import BaseEmbeddingEncoder
+from novel_analyser.core.interfaces.parser import BaseParser
 from novel_analyser.utils.plot import save_histogram
 from novel_analyser.utils.stat import compute_average_cosine_similarity
 
@@ -20,14 +20,23 @@ class SemanticAnalyser(BaseAnalyser):
     Класс для анализа семантической связности и когерентности текста.
     """
 
-    def __init__(self, config: Optional[AnalyserConfig] = None):
+    def __init__(
+        self,
+        text_parser: BaseParser,
+        embedding_encoder: BaseEmbeddingEncoder,
+        config: Optional[AnalyserConfig] = None,
+    ):
         """
         Инициализирует анализатор семантики.
 
         Args:
+            text_parser: Парсер для извлечения текстовых блоков
+            embedding_encoder: Процессор для получения эмбеддингов
             config: Конфигурация анализатора
         """
         super().__init__(config)
+        self.text_parser = text_parser
+        self.embedding_encoder = embedding_encoder
 
     def analyse(self, blocks: List[str]) -> AnalysisResult:
         """
@@ -42,18 +51,14 @@ class SemanticAnalyser(BaseAnalyser):
         result = AnalysisResult()
 
         # Извлекаем предложения из блоков
-        sentences = extract_all_sentences(blocks)
+        sentences = self.text_parser.extract_all_sentences(blocks)
 
         if not sentences:
             result.summary = "Семантический анализ:\n  Не найдено предложений для анализа.\n"
             return result
 
         # Получаем эмбеддинги для предложений
-        sentence_embeddings = get_text_embeddings(
-            sentences,
-            model_name=self.config.model.embedding_model,  # Use nested attribute path
-            device=self.config.model.device,  # Use nested attribute path
-        )
+        sentence_embeddings = self.embedding_encoder.encode(sentences)
 
         # Вычисляем когерентность (среднюю косинусную близость между соседними предложениями)
         avg_cosine = compute_average_cosine_similarity(sentence_embeddings)
@@ -66,7 +71,7 @@ class SemanticAnalyser(BaseAnalyser):
             v2 = sentence_embeddings[i + 1]
 
             cos_sim = np.dot(v1, v2) / (
-                    np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-9
+                np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-9
             )
             coherence_scores.append(cos_sim)
 
@@ -152,10 +157,10 @@ class SemanticAnalyser(BaseAnalyser):
 
         # Нормализуем векторы
         first_half_norm = first_half_mean / (
-                np.linalg.norm(first_half_mean) + 1e-9
+            np.linalg.norm(first_half_mean) + 1e-9
         )
         second_half_norm = second_half_mean / (
-                np.linalg.norm(second_half_mean) + 1e-9
+            np.linalg.norm(second_half_mean) + 1e-9
         )
 
         # Вычисляем косинусную близость между половинами текста

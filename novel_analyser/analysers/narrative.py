@@ -19,15 +19,20 @@ class NarrativeAnalyser(BaseAnalyser):
     Класс для анализа нарративной структуры и ритма повествования.
     """
 
-    def __init__(self, config: Optional[AnalyserConfig] = None):
+    def __init__(
+        self,
+        text_processor: TextProcessor,
+        config: Optional[AnalyserConfig] = None,
+    ):
         """
         Инициализирует анализатор нарратива.
 
         Args:
+            text_processor: Обработчик текста
             config: Конфигурация анализатора
         """
         super().__init__(config)
-        self.text_processor = TextProcessor()
+        self.text_processor = text_processor
 
     def analyse(self, blocks: List[str]) -> AnalysisResult:
         """
@@ -122,17 +127,17 @@ class NarrativeAnalyser(BaseAnalyser):
 
         # Оценка повествовательного ритма
         if (
-                result.metrics["sentence_counts_variability"]
-                > self.config.narrative.dynamic_rhythm_threshold
-                and result.metrics["avg_words_variability"]
-                > self.config.narrative.dynamic_rhythm_threshold
+            result.metrics["sentence_counts_variability"]
+            > self.config.narrative.dynamic_rhythm_threshold
+            and result.metrics["avg_words_variability"]
+            > self.config.narrative.dynamic_rhythm_threshold
         ):
             result.summary += "  Ритм повествования: динамичный, с значительными вариациями\n"
         elif (
-                result.metrics["sentence_counts_variability"]
-                > self.config.narrative.moderate_rhythm_threshold
-                or result.metrics["avg_words_variability"]
-                > self.config.narrative.moderate_rhythm_threshold
+            result.metrics["sentence_counts_variability"]
+            > self.config.narrative.moderate_rhythm_threshold
+            or result.metrics["avg_words_variability"]
+            > self.config.narrative.moderate_rhythm_threshold
         ):
             result.summary += "  Ритм повествования: умеренно вариативный\n"
         else:

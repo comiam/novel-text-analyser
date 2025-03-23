@@ -18,7 +18,12 @@ from novel_analyser.analysers.sentiment import SentimentAnalyser
 from novel_analyser.analysers.topic import TopicAnalyser
 from novel_analyser.core.base_analyser import AnalysisResult
 from novel_analyser.core.config import get_config, configure
-from novel_analyser.core.plugins import create_parser
+from novel_analyser.core.plugins import (
+    create_sentiment_processor,
+    create_text_parser,
+)
+from novel_analyser.core.plugins.plugins import create_embedding_encoder
+from novel_analyser.core.text_processor import TextProcessor
 from novel_analyser.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -46,7 +51,7 @@ class AnalysisOptions(BaseModel):
     )
 
 
-class TextAnalyser:
+class RootAnalyser:
     """
     Главный класс для анализа текста.
     Предоставляет единый интерфейс для всех видов анализа.
@@ -66,26 +71,47 @@ class TextAnalyser:
 
         # Создаем парсер для анализа текста
         logger.debug("Инициализация парсера текста")
-        self.parser = create_parser()
+        self.parser = create_text_parser()
+        self.text_processor = TextProcessor()
+        self.text_parser = create_text_parser()
+        self.sentiment_processor = create_sentiment_processor()
+        self.embedding_encoder = create_embedding_encoder()
 
         # Инициализируем все анализаторы
         logger.debug("Инициализация анализаторов")
         self.basic_analyser = BasicAnalyser(self.config)
-        self.readability_analyser = ReadabilityAnalyser(self.config)
-        self.narrative_analyser = NarrativeAnalyser(self.config)
-        self.sentiment_analyser = SentimentAnalyser(self.config)
+        self.readability_analyser = ReadabilityAnalyser(
+            self.text_processor, self.config
+        )
+        self.narrative_analyser = NarrativeAnalyser(
+            self.text_processor, self.config
+        )
+        self.sentiment_analyser = SentimentAnalyser(
+            self.sentiment_processor, self.config
+        )
         self.topic_analyser = TopicAnalyser(self.config)
-        self.character_analyser = CharacterAnalyser(self.config)
-        self.repetition_analyser = RepetitionAnalyser(self.config)
-        self.clustering_analyser = ClusteringAnalyser(self.config)
-        self.semantic_analyser = SemanticAnalyser(self.config)
+        self.character_analyser = CharacterAnalyser(
+            self.text_parser,
+            self.sentiment_analyser,
+            self.basic_analyser,
+            self.config,
+        )
+        self.repetition_analyser = RepetitionAnalyser(
+            self.text_processor, self.config
+        )
+        self.clustering_analyser = ClusteringAnalyser(
+            self.text_parser, self.embedding_encoder, self.config
+        )
+        self.semantic_analyser = SemanticAnalyser(
+            self.text_parser, self.embedding_encoder, self.config
+        )
         logger.debug("Все анализаторы инициализированы")
 
     def analyse_file(
-            self,
-            file_path: str,
-            output_dir: Optional[str] = None,
-            analyses: Optional[List[str]] = None,
+        self,
+        file_path: str,
+        output_dir: Optional[str] = None,
+        analyses: Optional[List[str]] = None,
     ) -> AnalysisResult:
         """
         Анализирует текст из файла.
@@ -129,7 +155,7 @@ class TextAnalyser:
         return self.analyse_text(content, options.analyses)
 
     def analyse_text(
-            self, text: str, analyses: Optional[List[str]] = None
+        self, text: str, analyses: Optional[List[str]] = None
     ) -> AnalysisResult:
         """
         Анализирует текст.
