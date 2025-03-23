@@ -83,7 +83,7 @@ class StandardEmbeddingProcessor(BaseEmbeddingEncoder):
         Returns:
             Массив эмбеддингов размерности (len(texts), embedding_dim)
         """
-        if not texts or not any(texts):
+        if not texts:
             logger.warning("Получен пустой список текстов для кодирования")
             return np.zeros((0, self.get_embedding_dimension()))
 
@@ -93,6 +93,10 @@ class StandardEmbeddingProcessor(BaseEmbeddingEncoder):
         cached_embeddings = {}
 
         for i, text in enumerate(texts):
+            if not text or text.isspace():
+                cached_embeddings[i] = np.zeros(self.get_embedding_dimension())
+                continue
+
             if text in self._cache:
                 cached_embeddings[i] = self._cache[text]
             else:
@@ -121,9 +125,9 @@ class StandardEmbeddingProcessor(BaseEmbeddingEncoder):
                 embedding = new_embeddings[i]
                 result[idx] = embedding
 
-                if text is not None and text.strip():
+                # Кэшируем только непустые тексты
+                if text and text.isspace():
                     self._cache[text] = embedding
-                self._cache[text] = embedding
 
             return result
         except Exception as e:

@@ -6,7 +6,7 @@
 """
 
 import re
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional, Tuple
 
 import numpy as np
 import pymorphy3
@@ -17,6 +17,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from novel_analyser.core.config import get_config
 from novel_analyser.core.interfaces import BaseParser
 from novel_analyser.utils import get_stop_words
+from novel_analyser.utils.logging import get_logger
 
 IGNORE_BLOCK_NAMES: Set[str] = {
     "StoryData",
@@ -24,6 +25,8 @@ IGNORE_BLOCK_NAMES: Set[str] = {
     "StoryStylesheet",
     "StoryScript",
 }
+
+logger = get_logger(__name__)
 
 
 class Block(BaseModel):
@@ -54,7 +57,7 @@ class StandardParser(BaseParser):
         character_name_uppercase: bool = True,
         ignore_html_comments: bool = True,
         exclude_frequent_words_count: int = 30,
-        **kwargs
+        **kwargs,
     ):
         """
         Инициализирует стандартный парсер.
@@ -69,6 +72,7 @@ class StandardParser(BaseParser):
         self.character_name_uppercase = character_name_uppercase
         self.ignore_html_comments = ignore_html_comments
         self.exclude_frequent_words_count = exclude_frequent_words_count
+        self._name_words = None
 
     def parse_blocks(self, text: str, raw_style: bool = False) -> List[str]:
         """
@@ -82,25 +86,50 @@ class StandardParser(BaseParser):
             Список отфильтрованных и очищенных блоков текста.
         """
         blocks_dict: Dict[str, Block] = self._parse_harlowe(text)
+
         # Если запрошен "сырый" стиль — возвращаем сырые блоки без чистки
         if raw_style:
-            raw_blocks: List[str] = []
-            for block in blocks_dict.values():
-                if not block:
-                    continue
-                if any(
-                    ignore_name in block.name
-                    for ignore_name in IGNORE_BLOCK_NAMES
-                ):
-                    continue
-                raw_text: str = "\n".join(block.lines)
-                if raw_text:
-                    raw_blocks.append(raw_text)
-            return raw_blocks
+            return self._extract_raw_blocks(blocks_dict)
 
         # Иначе выполняется стандартная обработка блоков
+        return self._process_and_clean_blocks(blocks_dict)
+
+    def _extract_raw_blocks(self, blocks_dict: Dict[str, Block]) -> List[str]:
+        """
+        Извлекает сырые блоки текста из словаря блоков.
+
+        Args:
+            blocks_dict: Словарь с блоками текста
+
+        Returns:
+            Список сырых блоков текста
+        """
+        raw_blocks: List[str] = []
+        for block in blocks_dict.values():
+            if not block:
+                continue
+            if any(
+                ignore_name in block.name for ignore_name in IGNORE_BLOCK_NAMES
+            ):
+                continue
+            raw_text: str = "\n".join(block.lines)
+            if raw_text:
+                raw_blocks.append(raw_text)
+        return raw_blocks
+
+    def _process_and_clean_blocks(
+        self, blocks_dict: Dict[str, Block]
+    ) -> List[str]:
+        """
+        Обрабатывает и очищает блоки текста.
+
+        Args:
+            blocks_dict: Словарь с блоками текста
+
+        Returns:
+            Список очищенных блоков текста
+        """
         stop_words: Set[str] = set(get_stop_words())
-        morph: pymorphy3.MorphAnalyzer = self.morph
 
         cleaned_blocks: List[str] = []
         for block in blocks_dict.values():
@@ -112,7 +141,7 @@ class StandardParser(BaseParser):
                 continue
 
             lemmas: List[str] = self._lemmatize_and_tokenize_words(
-                stop_words, morph, block_text
+                stop_words, self.morph, block_text
             )
             if lemmas:
                 cleaned_blocks.append(" ".join(lemmas))
@@ -217,6 +246,9 @@ class StandardParser(BaseParser):
         Returns:
             Список предложений.
         """
+        if not text:
+            return []
+
         return [s.strip() for s in re.split(r"[.!?]+", text) if s.strip()]
 
     def _parse_harlowe(self, content: str) -> Dict[str, Block]:
@@ -230,6 +262,9 @@ class StandardParser(BaseParser):
         Returns:
             Dict[str, Block]: Словарь блоков {имя_блока: объект_блока}
         """
+        if not content:
+            return {}
+
         blocks: Dict[str, Block] = {}
         current_block_name: str = ""
         current_block_lines: List[str] = []
@@ -270,6 +305,9 @@ class StandardParser(BaseParser):
         Returns:
             str: Очищенный заголовок
         """
+        if not header:
+            return ""
+
         header = header.split("\\", 1)[0].strip()
         header = re.sub(r"\s*\[.*$", "", header).strip()
         header = re.sub(r"\s*\{.*$", "", header).strip()
@@ -316,6 +354,9 @@ class StandardParser(BaseParser):
         Returns:
             Список лемматизированных и токенизированных слов, исключая стоп-слова.
         """
+        if not block_text or block_text.isspace():
+            return []
+
         tokens: List[str] = [
             token.text.lower() for token in tokenize(block_text)
         ]
@@ -332,21 +373,23 @@ class StandardParser(BaseParser):
 
     def _get_names_words(self) -> List[str]:
         """
-        Возвращает список имен персонажей.
+        Возвращает список имен персонажей из конфигурации.
 
         Returns:
             Список имен персонажей.
         """
-        # Initialize with an empty list in case the config's predefined_names is not available
+        if self._name_words is not None:
+            return self._name_words
+
         try:
             config = get_config()
-            return config.character.predefined_names
+            self._name_words = config.character.predefined_names
+            return self._name_words
         except AttributeError:
-            # Handle the case where the config structure doesn't match what we expect
-            # This could happen during transition to the new Pydantic structure
-            print(
-                "Warning: Could not access config.character.predefined_names, returning empty list"
+            logger.warning(
+                "Не удалось получить список имен персонажей из конфигурации, возвращаю пустой список"
             )
+            self._name_words = []
             return []
 
     def _exclude_most_frequent_words(
@@ -361,27 +404,38 @@ class StandardParser(BaseParser):
         Returns:
             Список текстовых блоков с исключенными частыми словами.
         """
-        vectorizer: TfidfVectorizer = TfidfVectorizer(max_df=1.0)
-        tfidf_matrix = vectorizer.fit_transform(cleaned_blocks)
-        feature_names = vectorizer.get_feature_names_out()
+        if not cleaned_blocks:
+            return []
 
-        tfidf_sum: np.ndarray = np.array(tfidf_matrix.sum(axis=0)).flatten()
-        top_indices = tfidf_sum.argsort()[::-1]
+        try:
+            vectorizer: TfidfVectorizer = TfidfVectorizer(max_df=1.0)
+            tfidf_matrix = vectorizer.fit_transform(cleaned_blocks)
+            feature_names = vectorizer.get_feature_names_out()
 
-        frequent_words: Set[str] = {
-            feature_names[i]
-            for i in top_indices[: self.exclude_frequent_words_count]
-            if feature_names[i] not in self._get_names_words()
-        }
+            tfidf_sum: np.ndarray = np.array(
+                tfidf_matrix.sum(axis=0)
+            ).flatten()
+            top_indices = tfidf_sum.argsort()[::-1]
 
-        filtered_blocks: List[str] = []
-        for block in cleaned_blocks:
-            words: List[str] = block.split()
+            frequent_words: Set[str] = {
+                feature_names[i]
+                for i in top_indices[: self.exclude_frequent_words_count]
+                if feature_names[i] not in self._get_names_words()
+            }
 
-            filtered_block: str = " ".join(
-                word for word in words if word not in frequent_words
-            )
+            filtered_blocks: List[str] = []
+            for block in cleaned_blocks:
+                words: List[str] = block.split()
 
-            filtered_blocks.append(filtered_block if filtered_block else block)
+                filtered_block: str = " ".join(
+                    word for word in words if word not in frequent_words
+                )
 
-        return filtered_blocks
+                filtered_blocks.append(
+                    filtered_block if filtered_block else block
+                )
+
+            return filtered_blocks
+        except Exception as e:
+            logger.error(f"Ошибка при исключении частых слов: {str(e)}")
+            return cleaned_blocks

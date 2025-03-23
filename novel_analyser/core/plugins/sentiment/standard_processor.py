@@ -5,7 +5,7 @@
 который используется по умолчанию.
 """
 
-from typing import List, Literal
+from typing import List, Literal, Tuple
 
 import torch
 from transformers import (
@@ -154,40 +154,66 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
             s.strip() for s in text.replace("\n", " ").split(".") if s.strip()
         ]
 
-        # Если предложений нет, разбиваем по пробелам
         if not sentences:
-            words = text.split()
-            logger.debug(
-                f"Предложения не обнаружены, разбиваю текст на {len(words)} слов"
-            )
-
-            if not words:
-                return []
-
-            # Группируем слова в чанки
-            chunks = []
-            current_chunk = []
-            current_length = 0
-            max_words = int(max_length * 0.9)  # Примерная оценка
-
-            for word in words:
-                if current_length + 1 > max_words:
-                    if current_chunk:
-                        chunks.append(" ".join(current_chunk))
-                    current_chunk = [word]
-                    current_length = 1
-                else:
-                    current_chunk.append(word)
-                    current_length += 1
-
-            if current_chunk:
-                chunks.append(" ".join(current_chunk))
-
-            logger.info(f"Создано {len(chunks)} фрагментов текста")
-            return chunks
+            return self._split_by_words(text, max_length)
 
         logger.debug(f"Обнаружено {len(sentences)} предложений")
+        return self._split_by_sentences(sentences, max_length)
 
+    def _split_by_words(self, text: str, max_length: int) -> List[str]:
+        """
+        Разделяет текст на фрагменты по словам.
+
+        Args:
+            text: Исходный текст
+            max_length: Максимальная длина фрагмента
+
+        Returns:
+            Список фрагментов текста
+        """
+        words = text.split()
+        logger.debug(
+            f"Предложения не обнаружены, разбиваю текст на {len(words)} слов"
+        )
+
+        if not words:
+            return []
+
+        # Группируем слова в чанки
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        max_words = int(max_length * 0.9)  # Примерная оценка
+
+        for word in words:
+            if current_length + 1 > max_words:
+                if current_chunk:
+                    chunks.append(" ".join(current_chunk))
+                current_chunk = [word]
+                current_length = 1
+            else:
+                current_chunk.append(word)
+                current_length += 1
+
+        if current_chunk:
+            chunks.append(" ".join(current_chunk))
+
+        logger.info(f"Создано {len(chunks)} фрагментов текста")
+        return chunks
+
+    def _split_by_sentences(
+        self, sentences: List[str], max_length: int
+    ) -> List[str]:
+        """
+        Разделяет текст на фрагменты по предложениям.
+
+        Args:
+            sentences: Список предложений
+            max_length: Максимальная длина фрагмента
+
+        Returns:
+            Список фрагментов текста
+        """
         # Собираем предложения в чанки
         chunks = []
         current_chunk = []
@@ -213,6 +239,63 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
 
         logger.debug(f"Создано {len(chunks)} фрагментов текста")
         return chunks
+
+    def _calculate_chunk_weight(
+        self,
+        i: int,
+        total_chunks: int,
+        chunk_length: int,
+        total_length: int,
+        sentiment: float,
+        weighting_strategy: str,
+    ) -> Tuple[float, float]:
+        """
+        Вычисляет вес фрагмента текста для анализа настроений.
+
+        Args:
+            i: Индекс фрагмента
+            total_chunks: Общее количество фрагментов
+            chunk_length: Длина текущего фрагмента
+            total_length: Общая длина текста
+            sentiment: Значение настроения фрагмента
+            weighting_strategy: Стратегия взвешивания
+
+        Returns:
+            Кортеж (sentiment, weight) - настроение и вес фрагмента
+        """
+        # Абсолютное значение сентимента как мера уверенности модели
+        confidence = abs(sentiment)
+
+        # Вес по длине: более длинные фрагменты имеют больший вес
+        length_weight = (
+            chunk_length / total_length if total_length > 0 else 1.0
+        )
+
+        # Вес по позиции: учитывает положение фрагмента в тексте
+        normalized_position = (
+            i / max(1, total_chunks - 1) if total_chunks > 1 else 0.5
+        )
+
+        # Выбор стратегии позиционного взвешивания
+        if weighting_strategy == "narrative":
+            # Параболическая функция с пиком в начале и конце текста
+            position_factor = 0.8 + 0.2 * (
+                2 * (normalized_position - 0.5) ** 2
+            )
+        elif weighting_strategy == "speech":
+            # Линейно убывающая функция
+            position_factor = 1.0 - 0.2 * normalized_position
+        else:  # "equal"
+            # Равномерный вес для всех позиций
+            position_factor = 1.0
+
+        # Вес по уверенности: учитывает силу эмоционального окраса
+        confidence_factor = 0.3 + 0.7 * min(1.0, confidence)
+
+        # Финальный вес - произведение всех факторов
+        weight = length_weight * position_factor * confidence_factor
+
+        return sentiment, weight
 
     def analyze_long_text(
         self,
@@ -255,13 +338,13 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
             )
             return self.get_sentiment(chunks[0])
 
-        # Обрабатываем каждый фрагмент и собираем результаты
-        chunk_sentiments = []
-        chunk_weights = []
-
         # Оцениваем длину каждого чанка для весов
         chunk_lengths = [len(chunk) for chunk in chunks]
         total_length = sum(chunk_lengths)
+
+        # Обрабатываем каждый фрагмент и собираем результаты
+        weighted_sentiments = []
+        total_weight = 0.0
 
         for i, chunk in enumerate(chunks):
             try:
@@ -270,40 +353,19 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
 
                 # Получаем значение сентимента для текущего фрагмента
                 sentiment = self.get_sentiment(chunk)
-                chunk_sentiments.append(sentiment)
 
-                # Абсолютное значение сентимента как мера уверенности модели
-                confidence = abs(sentiment)
-
-                # Вес по длине: более длинные фрагменты имеют больший вес
-                length_weight = (
-                    chunk_lengths[i] / total_length
-                    if total_length > 0
-                    else 1.0
+                # Рассчитываем вес для текущего фрагмента
+                sentiment, weight = self._calculate_chunk_weight(
+                    i,
+                    len(chunks),
+                    chunk_lengths[i],
+                    total_length,
+                    sentiment,
+                    weighting_strategy,
                 )
 
-                # Вес по позиции: учитывает положение фрагмента в тексте
-                normalized_position = i / max(1, len(chunks) - 1)
-
-                # Выбор стратегии позиционного взвешивания
-                if weighting_strategy == "narrative":
-                    # Параболическая функция с пиком в начале и конце текста
-                    position_factor = 0.8 + 0.2 * (
-                        2 * (normalized_position - 0.5) ** 2
-                    )
-                elif weighting_strategy == "speech":
-                    # Линейно убывающая функция
-                    position_factor = 1.0 - 0.2 * normalized_position
-                else:  # "equal"
-                    # Равномерный вес для всех позиций
-                    position_factor = 1.0
-
-                # Вес по уверенности: учитывает силу эмоционального окраса
-                confidence_factor = 0.3 + 0.7 * min(1.0, confidence)
-
-                # Финальный вес - произведение всех факторов
-                weight = length_weight * position_factor * confidence_factor
-                chunk_weights.append(weight)
+                weighted_sentiments.append((sentiment, weight))
+                total_weight += weight
 
                 logger.debug(
                     f"Фрагмент {i + 1}/{len(chunks)}: сентимент={sentiment:.3f}, вес={weight:.3f}"
@@ -313,17 +375,14 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
                 continue
 
         # Вычисляем взвешенное среднее сентиментов
-        if not chunk_sentiments or not chunk_weights:
+        if not weighted_sentiments:
             logger.warning(
                 "Не удалось проанализировать ни один фрагмент, возвращаю 0.0"
             )
             return 0.0
 
-        weighted_sum = sum(
-            s * w for s, w in zip(chunk_sentiments, chunk_weights)
-        )
-        total_weight = sum(chunk_weights)
-
+        weighted_sum = sum(s * w for s, w in weighted_sentiments)
         result = weighted_sum / total_weight if total_weight else 0.0
+
         logger.debug(f"Итоговая взвешенная оценка настроения: {result:.3f}")
         return result

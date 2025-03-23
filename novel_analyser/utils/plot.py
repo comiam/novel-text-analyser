@@ -2,17 +2,25 @@
 Функции для построения и сохранения графиков.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from novel_analyser.core.config import get_config
-from novel_analyser.utils.stat import optimal_bins
+from novel_analyser.core import get_config
+from novel_analyser.utils.stat import optimal_bins, filter_insignificant_values
+
+
+def _setup_matplotlib():
+    """
+    Настраивает базовые параметры matplotlib для отображения русского текста.
+    """
+    plt.rcParams["font.family"] = "DejaVu Sans"
+    plt.rcParams["axes.unicode_minus"] = False
 
 
 def save_histogram(
-    data: List[float],
+    data: Sequence[float],
     title: str,
     xlabel: str,
     ylabel: str,
@@ -30,9 +38,21 @@ def save_histogram(
         save_path: Путь для сохранения графика
         nbins: Число бинов (если None, определяется автоматически)
     """
+    if not data:
+        # Создаем пустую гистограмму, если данных нет
+        plt.figure(figsize=(8, 6))
+        plt.title(f"{title} (нет данных)")
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.grid(True)
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+        return
+
     if nbins is None:
         nbins = optimal_bins(data)
 
+    _setup_matplotlib()
     plt.figure(figsize=(8, 6))
     plt.hist(data, bins=nbins, edgecolor="black")
     plt.title(title)
@@ -45,7 +65,7 @@ def save_histogram(
 
 
 def save_elbow_curve(
-    inertias: List[float], max_clusters: int, save_path: str
+    inertias: Sequence[float], max_clusters: int, save_path: str
 ) -> None:
     """
     Строит и сохраняет график elbow-curve для кластеризации.
@@ -55,8 +75,20 @@ def save_elbow_curve(
         max_clusters: Максимальное число кластеров
         save_path: Путь для сохранения графика
     """
-    ks: List[int] = list(range(1, max_clusters + 1))
+    if not inertias:
+        # Создаем пустой график, если данных нет
+        plt.figure(figsize=(8, 6))
+        plt.title("Elbow Curve для KMeans кластеризации (нет данных)")
+        plt.xlabel("Число кластеров (k)")
+        plt.ylabel("Инерция")
+        plt.grid(True)
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+        return
 
+    ks: List[int] = list(range(1, min(max_clusters + 1, len(inertias) + 1)))
+
+    _setup_matplotlib()
     plt.figure(figsize=(8, 6))
     plt.plot(ks, inertias, marker="o")
     plt.title("Elbow Curve для KMeans кластеризации")
@@ -80,9 +112,18 @@ def save_embedding_scatter(
         title: Заголовок диаграммы
         save_path: Путь для сохранения изображения
     """
+    if len(embeddings_2d) == 0:
+        # Создаем пустую диаграмму, если данных нет
+        plt.figure(figsize=(8, 6))
+        plt.title(f"{title} (нет данных)")
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+        return
+
+    _setup_matplotlib()
     plt.figure(figsize=(8, 6))
 
-    if np.any(labels):
+    if np.any(labels) and len(np.unique(labels)) > 1:
         scatter = plt.scatter(
             embeddings_2d[:, 0],
             embeddings_2d[:, 1],
@@ -90,8 +131,9 @@ def save_embedding_scatter(
             cmap="viridis",
             alpha=0.7,
         )
+        plt.colorbar(scatter)
     else:
-        scatter = plt.scatter(
+        plt.scatter(
             embeddings_2d[:, 0],
             embeddings_2d[:, 1],
             color="blue",
@@ -99,38 +141,35 @@ def save_embedding_scatter(
         )
 
     plt.title(title)
-
-    if np.any(labels):
-        plt.colorbar(scatter)
-
     plt.savefig(save_path, bbox_inches="tight")
     plt.close()
 
 
-def save_sentiment_histogram(sentiments: List[float], save_path: str) -> None:
+def save_sentiment_histogram(
+    sentiments: Sequence[float], save_path: str
+) -> None:
     """
     Сохраняет гистограмму распределения значений сентимента в указанный файл.
 
     Args:
-        sentiments: Список значений сентимента
+        sentiments: Последовательность значений сентимента
         save_path: Путь к файлу, в который будет сохранена гистограмма
     """
     nbins: int = optimal_bins(sentiments)
 
+    _setup_matplotlib()
     plt.figure(figsize=(8, 6))
     plt.hist(sentiments, bins=nbins, edgecolor="black")
-
     plt.title("Распределение эмоционального окраса блоков")
     plt.xlabel("Сентимент (полярность)")
     plt.ylabel("Количество блоков")
-
     plt.grid(True)
     plt.savefig(save_path, bbox_inches="tight")
     plt.close()
 
 
 def save_sentiment_pie_chart(
-    sentiments: List[float],
+    sentiments: Sequence[float],
     save_path: str,
     positive_threshold: Optional[float] = None,
     negative_threshold: Optional[float] = None,
@@ -139,11 +178,19 @@ def save_sentiment_pie_chart(
     Сохраняет круговую диаграмму распределения эмоционального окраса блоков.
 
     Args:
-        sentiments: Список значений эмоционального окраса
+        sentiments: Последовательность значений эмоционального окраса
         save_path: Путь для сохранения изображения диаграммы
         positive_threshold: Порог для определения положительного настроения
         negative_threshold: Порог для определения отрицательного настроения
     """
+    if not sentiments:
+        # Создаем пустую диаграмму, если данных нет
+        plt.figure(figsize=(8, 6))
+        plt.title("Распределение эмоционального окраса блоков (нет данных)")
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+        return
+
     if positive_threshold is None or negative_threshold is None:
         config = get_config()
 
@@ -159,9 +206,9 @@ def save_sentiment_pie_chart(
     labels: List[str] = ["Положительные", "Нейтральные", "Отрицательные"]
     sizes: List[int] = [pos, neu, neg]
 
+    _setup_matplotlib()
     plt.figure(figsize=(8, 6))
     plt.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=140)
-
     plt.title("Распределение эмоционального окраса блоков")
     plt.savefig(save_path, bbox_inches="tight")
     plt.close()
@@ -169,7 +216,7 @@ def save_sentiment_pie_chart(
 
 def save_bar_chart(
     labels: List[str],
-    values: List[float],
+    values: Sequence[float],
     title: str,
     xlabel: str,
     ylabel: str,
@@ -188,27 +235,35 @@ def save_bar_chart(
         save_path: Путь для сохранения изображения
         filter_small_values: Фильтровать ли незначимые значения
     """
-    from novel_analyser.utils.stat import filter_insignificant_values
+    if not labels or not values:
+        # Создаем пустую диаграмму, если данных нет
+        plt.figure(figsize=(10, 6))
+        plt.title(f"{title} (нет данных)")
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+        return
 
-    if filter_small_values:
-        filtered_labels, filtered_values = filter_insignificant_values(
-            labels, values
-        )
-    else:
-        filtered_labels, filtered_values = labels, values
+    filtered_labels, filtered_values = (
+        filter_insignificant_values(labels, values)
+        if filter_small_values
+        else (labels, list(values))
+    )
+
+    # Если после фильтрации ничего не осталось, используем исходные данные
+    if not filtered_labels:
+        filtered_labels, filtered_values = labels, list(values)
 
     # Сортируем по значениям для лучшей визуализации
-    if filtered_labels:
-        sorted_data = sorted(
-            zip(filtered_labels, filtered_values),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        filtered_labels, filtered_values = zip(*sorted_data)
-        filtered_labels, filtered_values = list(filtered_labels), list(
-            filtered_values
-        )
+    sorted_data = sorted(
+        zip(filtered_labels, filtered_values),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    filtered_labels, filtered_values = zip(*sorted_data)
 
+    _setup_matplotlib()
     plt.figure(figsize=(10, 6))
     plt.bar(filtered_labels, filtered_values)
 

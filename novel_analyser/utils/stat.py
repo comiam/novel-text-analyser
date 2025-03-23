@@ -21,27 +21,28 @@ def optimal_bins(data: List[float]) -> int:
     Returns:
         Оптимальное число бинов
     """
-    n: int = len(data)
-    config = get_config()
-
+    n = len(data)
     if n < 2:
         return 1
 
-    data_arr: np.ndarray = np.array(data)
+    config = get_config()
+    data_arr = np.array(data)
 
-    q1: float = np.percentile(data_arr, config.statistics.quartile_first)
-    q3: float = np.percentile(data_arr, config.statistics.quartile_third)
-    iqr: float = q3 - q1
+    q1 = np.percentile(data_arr, config.statistics.quartile_first)
+    q3 = np.percentile(data_arr, config.statistics.quartile_third)
+    iqr = q3 - q1
 
     # Если межквартильный размах равен 0, используем правило Стёрджесса
     if iqr == 0:
         return int(ceil(np.log2(n) + config.statistics.sturges_offset))
 
-    bin_width: float = (
-            config.statistics.friedman_diaconis_factor * iqr / (n ** (1 / 3))
-    )
-    data_range: float = np.max(data_arr) - np.min(data_arr)
+    data_range = np.max(data_arr) - np.min(data_arr)
+    if data_range == 0:
+        return 1
 
+    bin_width = (
+        config.statistics.friedman_diaconis_factor * iqr / (n ** (1 / 3))
+    )
     if bin_width == 0:
         return 1
 
@@ -54,9 +55,9 @@ def optimal_bins(data: List[float]) -> int:
 
 
 def filter_outliers_by_percentiles(
-        data: List[float],
-        lower_percentile: Optional[float] = None,
-        upper_percentile: Optional[float] = None,
+    data: List[float],
+    lower_percentile: Optional[float] = None,
+    upper_percentile: Optional[float] = None,
 ) -> List[float]:
     """
     Фильтрует выбросы из данных на основе перцентилей.
@@ -121,7 +122,7 @@ def compute_average_cosine_similarity(embeddings: np.ndarray) -> float:
 
 
 def filter_insignificant_values(
-        labels: List[str], values: List[float], iqr_factor: Optional[float] = None
+    labels: List[str], values: List[float], iqr_factor: Optional[float] = None
 ) -> Tuple[List[str], List[float]]:
     """
     Фильтрует статистически незначимые (близкие к нулю) значения используя метод

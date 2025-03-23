@@ -8,6 +8,7 @@
 
 import importlib
 from typing import Dict, Optional, Type, TypeVar, Generic, List
+from novel_analyser.core.config import get_config
 
 T = TypeVar("T")
 
@@ -79,11 +80,7 @@ class PluginRegistry(Generic[T]):
         try:
             # Разбиваем путь на модуль и класс
             module_path, class_name = class_path.rsplit(".", 1)
-
-            # Импортируем модуль
             module = importlib.import_module(module_path)
-
-            # Получаем класс из модуля
             plugin_class = getattr(module, class_name)
 
             # Проверяем, что класс является наследником базового класса
@@ -92,7 +89,6 @@ class PluginRegistry(Generic[T]):
                     f"Класс {class_name} из модуля {module_path} не наследует {self.base_class.__name__}"
                 )
 
-            # Регистрируем класс для будущего использования
             self.register(class_path, plugin_class)
 
             return plugin_class
@@ -126,10 +122,41 @@ class PluginRegistry(Generic[T]):
         return list(self._registry.keys())
 
 
-# Глобальные реестры для различных типов плагинов
-_parser_registry = None
-_sentiment_processor_registry = None
-_embedding_encoder_registry = None
+# Кеш для реестров плагинов
+_plugin_registries = {}
+
+
+def _get_registry(
+    base_class_path: str, default_class_path: str
+) -> PluginRegistry:
+    """
+    Получает или создает реестр плагинов для указанных базового и дефолтного классов.
+
+    Args:
+        base_class_path: Путь к базовому классу
+        default_class_path: Путь к классу по умолчанию
+
+    Returns:
+        Реестр плагинов
+    """
+    registry_key = f"{base_class_path}:{default_class_path}"
+
+    if registry_key not in _plugin_registries:
+        # Импортируем классы для реестра
+        module_path, class_name = base_class_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        base_class = getattr(module, class_name)
+
+        module_path, class_name = default_class_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        default_class = getattr(module, class_name)
+
+        # Создаем реестр и сохраняем его в кеше
+        _plugin_registries[registry_key] = PluginRegistry(
+            base_class, default_class
+        )
+
+    return _plugin_registries[registry_key]
 
 
 def get_parser_registry():
@@ -139,18 +166,10 @@ def get_parser_registry():
     Returns:
         Реестр парсеров текста
     """
-    global _parser_registry
-
-    if _parser_registry is None:
-        # Import here to avoid circular imports
-        from novel_analyser.core.interfaces.parser import BaseParser
-        from novel_analyser.core.plugins.text_parsers.standard_parser import (
-            StandardParser,
-        )
-
-        _parser_registry = PluginRegistry(BaseParser, StandardParser)
-
-    return _parser_registry
+    return _get_registry(
+        "novel_analyser.core.interfaces.parser.BaseParser",
+        "novel_analyser.core.plugins.text_parsers.standard_parser.StandardParser",
+    )
 
 
 def get_sentiment_processor_registry():
@@ -160,22 +179,10 @@ def get_sentiment_processor_registry():
     Returns:
         Реестр обработчиков эмоциональной окраски
     """
-    global _sentiment_processor_registry
-
-    if _sentiment_processor_registry is None:
-        # Import here to avoid circular imports
-        from novel_analyser.core.interfaces.sentiment import (
-            BaseSentimentProcessor,
-        )
-        from novel_analyser.core.plugins.sentiment.standard_processor import (
-            StandardSentimentProcessor,
-        )
-
-        _sentiment_processor_registry = PluginRegistry(
-            BaseSentimentProcessor, StandardSentimentProcessor
-        )
-
-    return _sentiment_processor_registry
+    return _get_registry(
+        "novel_analyser.core.interfaces.sentiment.BaseSentimentProcessor",
+        "novel_analyser.core.plugins.sentiment.standard_processor.StandardSentimentProcessor",
+    )
 
 
 def get_embedding_encoder_registry():
@@ -185,22 +192,41 @@ def get_embedding_encoder_registry():
     Returns:
         Реестр обработчиков эмбеддингов
     """
-    global _embedding_encoder_registry
+    return _get_registry(
+        "novel_analyser.core.interfaces.embedding.BaseEmbeddingEncoder",
+        "novel_analyser.core.plugins.embedding.standard_processor.StandardEmbeddingProcessor",
+    )
 
-    if _embedding_encoder_registry is None:
-        # Import here to avoid circular imports
-        from novel_analyser.core.interfaces.embedding import (
-            BaseEmbeddingEncoder,
-        )
-        from novel_analyser.core.plugins.embedding.standard_processor import (
-            StandardEmbeddingProcessor,
-        )
 
-        _embedding_encoder_registry = PluginRegistry(
-            BaseEmbeddingEncoder, StandardEmbeddingProcessor
-        )
+def _create_instance_by_registry(
+    registry: PluginRegistry, config_name: str
+) -> T:
+    """
+    Создает экземпляр модуля из реестра плагинов на основе конфигурации.
+    Функция получает конфигурацию по указанному имени, извлекает путь к модулю
+    и аргументы, необходимые для его создания, затем создает экземпляр через реестр.
 
-    return _embedding_encoder_registry
+    Args:
+        registry (PluginRegistry): Реестр плагинов, используемый для создания экземпляра.
+        config_name (str): Имя конфигурации в общих настройках.
+
+    Returns:
+        T: Созданный экземпляр модуля указанного типа.
+
+    Note:
+        Функция ожидает, что в конфигурации будут поля 'module_path' и опционально 'args'.
+        Если 'args' имеет метод model_dump(), он будет вызван для получения аргументов в виде словаря.
+    """
+
+    config = get_config()
+    module_config = getattr(config, config_name, None)
+    module_path = getattr(module_config, "module_path", None)
+    parser_args = getattr(module_config, "args", {})
+
+    if hasattr(parser_args, "model_dump"):
+        parser_args = parser_args.model_dump()
+
+    return registry.create_instance(module_path, **parser_args)
 
 
 def create_text_parser():
@@ -210,25 +236,7 @@ def create_text_parser():
     Returns:
         Экземпляр парсера текста
     """
-    # Import here to avoid circular imports
-    from novel_analyser.core.config import get_config
-
-    config = get_config()
-    module_path_path = (
-        config.parser.module_path
-        if hasattr(config.parser, "module_path")
-        else None
-    )
-
-    parser_args = (
-        config.parser.args.model_dump()
-        if hasattr(config.parser, "args")
-        else {}
-    )
-
-    return get_parser_registry().create_instance(
-        module_path_path, **parser_args
-    )
+    return _create_instance_by_registry(get_parser_registry(), "parser")
 
 
 def create_sentiment_processor():
@@ -238,24 +246,8 @@ def create_sentiment_processor():
     Returns:
         Экземпляр обработчика эмоциональной окраски
     """
-    # Import here to avoid circular imports
-    from novel_analyser.core.config import get_config
-
-    config = get_config()
-    module_path_path = (
-        config.sentiment.module_path
-        if hasattr(config.sentiment, "module_path")
-        else None
-    )
-
-    processor_args = (
-        config.sentiment.args.model_dump()
-        if hasattr(config.sentiment, "args")
-        else {}
-    )
-
-    return get_sentiment_processor_registry().create_instance(
-        module_path_path, **processor_args
+    return _create_instance_by_registry(
+        get_sentiment_processor_registry(), "sentiment"
     )
 
 
@@ -266,22 +258,6 @@ def create_embedding_encoder():
     Returns:
         Экземпляр обработчика эмбеддингов
     """
-    # Import here to avoid circular imports
-    from novel_analyser.core.config import get_config
-
-    config = get_config()
-    module_path_path = (
-        config.embedding.module_path
-        if hasattr(config.embedding, "module_path")
-        else None
-    )
-
-    processor_args = (
-        config.embedding.args.model_dump()
-        if hasattr(config.embedding, "args")
-        else {}
-    )
-
-    return get_embedding_encoder_registry().create_instance(
-        module_path_path, **processor_args
+    return _create_instance_by_registry(
+        get_embedding_encoder_registry(), "embedding"
     )
