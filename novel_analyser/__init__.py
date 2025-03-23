@@ -9,7 +9,6 @@ from novel_analyser.core.config import (
     get_config,
     configure,
     AnalyserConfig,
-    SentimentAnalyzeConfig,
 )
 from novel_analyser.utils.logging import configure_logging
 
@@ -28,5 +27,4 @@ __all__ = [
     "get_config",
     "configure",
     "AnalyserConfig",
-    "SentimentAnalyzeConfig",
 ]
