@@ -69,427 +69,167 @@ pip install -r requirements.txt
 Ниже приведен пример полного анализа текста с сохранением результатов и исследованием различных аспектов:
 
 ```python
-from novel_analyser import TextAnalyser, configure
-import os
+from novel_analyser import RootAnalyser
 
-# Настройка конфигурации - один раз при запуске
-configure({
-    "output": {
-        "output_dir": "analysis_results"
-    },
-    "model": {
-        "use_gpu": True,  # Использовать GPU если доступен
-        "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    },
-    "analyse": {
-        "reading_speed_wpm": 180.0  # Скорость чтения слов в минуту для подсчета времени
-    },
-    "sentiment_analyze": {
-        "positive_threshold": 0.1,   # Порог для позитивной оценки
-        "negative_threshold": -0.1   # Порог для негативной оценки
-    },
-    "character": {
-        "predefined_names": ["АЛИСА", "БОРЯ", "ВИКА"]  # Предопределенные имена персонажей
-    }
-})
+# Инициализируем анализатор текста
+analyser = RootAnalyser()
 
-# Создание анализатора
-analyser = TextAnalyser()
+# Анализируем файл и сохраняем результаты в директорию 'results'
+result = analyser.analyse_file(
+    file_path="path/to/novel.twee",
+    output_dir="results",
+    analyses=["all"]  # или выберите конкретные анализы
+)
 
-# Путь к файлу с текстом новеллы
-file_path = "path/to/your/novel.txt"
+# Просмотр результатов
+print(result.summary)  # Краткое текстовое резюме
+print(result.metrics)  # Все метрики анализа
+print(result.figures)  # Пути к сохраненным визуализациям
 
-# Определение интересующих типов анализа
-# Можно выбрать только нужные типы анализа: 
-# 'basic', 'readability', 'narrative', 'sentiment', 
-# 'topic', 'character', 'repetition', 'clustering', 'semantic'
-analyses = [
-    "basic",           # Базовый анализ текста
-    "readability",     # Анализ читаемости
-    "narrative",       # Нарративный анализ
-    "sentiment",       # Анализ эмоциональной окраски
-    "character",       # Анализ персонажей
-    "topic"            # Тематическое моделирование
-]
-
-# Выполнение полного анализа текста
-result = analyser.analyse_file(file_path, analyses=analyses)
-
-# Вывод итогового резюме
-print("\n=== РЕЗУЛЬТАТЫ АНАЛИЗА ===\n")
-print(result.summary)
+# Доступны следующие типы анализа:
+# - basic: базовый анализ текста
+# - readability: анализ читаемости
+# - narrative: анализ нарративной структуры
+# - sentiment: анализ эмоциональной окраски
+# - topic: тематическое моделирование
+# - character: анализ персонажей
+# - repetition: анализ повторяемости
+# - clustering: кластеризация текста
+# - semantic: семантический анализ
+# - all: все вышеперечисленные анализы
 ```
 
-### Анализ эмоциональной окраски текста:
+### Использование отдельных анализаторов
+
+Можно использовать отдельные анализаторы для более специфических задач:
 
 ```python
-from novel_analyser import SentimentAnalyser # так же есть и остальные модули анализа по отдельности
+from novel_analyser import RootAnalyser
 
-# Создаем анализатор настроений
-sentiment_analyser = SentimentAnalyser()
+# Создаем экземпляр главного анализатора
+analyser = RootAnalyser()
 
-# Анализ текста
-result = sentiment_analyser.analyse(["Ваш текст для анализа"])
+# Анализируем только выбранные аспекты текста
+result = analyser.analyse_file(
+    file_path="path/to/novel.twee",
+    analyses=["sentiment", "character"]  # Только эмоциональная окраска и анализ персонажей
+)
 
-# Доступ к результатам
-print(f"Средняя эмоциональная окраска: {result.metrics['avg_sentiment']}")
-print(f"Процент положительных блоков: {result.metrics['pos_ratio'] * 100:.1f}%")
-print(f"Процент отрицательных блоков: {result.metrics['neg_ratio'] * 100:.1f}%")
+# Работа с текстом напрямую
+text = """
+ГЕРОЙ
+Это пример диалога для анализа.
+Он будет обработан напрямую.
+
+ДРУГОЙ ГЕРОЙ
+Конечно, это очень удобно!
+"""
+
+# Анализируем текст
+result = analyser.analyse_text(text, analyses=["basic", "readability"])
 ```
 
-### Работа с эмбеддингами текста:
+### Использование из командной строки
 
-```python
-from novel_analyser import EmbeddingProcessor
+Библиотека также предоставляет интерфейс командной строки:
 
-# Создаем процессор эмбеддингов
-embedding_encoder = EmbeddingProcessor()
+```bash
+# Полный анализ файла с сохранением результатов в директорию 'analysis'
+python -m main /path/to/novel.twee --output analysis
 
-# Получаем эмбеддинги для списка текстов
-texts = ["Первый текст", "Второй текст", "Третий текст"]
-embeddings = embedding_encoder.encode(texts)
+# Указание конкретных анализов
+python -m main /path/to/novel.twee --analyses basic sentiment character
 
-# Вычисляем схожесть между двумя текстами
-similarity = embedding_encoder.compute_similarity("Кошка спит", "Кот дремлет")
-print(f"Семантическая схожесть: {similarity:.4f}")
+# Использование собственного конфигурационного файла
+python -m main /path/to/novel.twee --config my_config.yaml
 
-# Вычисляем матрицу схожести для списка текстов
-similarity_matrix = embedding_encoder.compute_batch_similarities(texts)
-print("Матрица схожести:")
-print(similarity_matrix)
+# Использование только CPU (без GPU)
+python -m main /path/to/novel.twee --cpu
 ```
 
-### Тематическое моделирование:
+## Конфигурация
 
-```python
-from novel_analyser import TopicModeler
+Библиотека использует файлы конфигурации в формате YAML для настройки различных параметров анализа. По умолчанию используется файл `configs/default_config.yaml`. Пример конфигурации:
 
-# Создаем анализатор тем
-topic_analyser = TopicModeler()
+```yaml
+# Конфигурация вывода результатов
+output:
+  output_dir: "analysis"
+  metrics_file: "metrics.txt"
 
-# Находим оптимальное количество тем и ключевые слова
-optimal_topics, topic_keywords = topic_analyser.extract_topics("Ваш текст")
+# Конфигурация моделей и устройств
+model:
+  use_gpu: true
+  device_id: 0
+  sentiment_model: "cointegrated/rubert-tiny-sentiment-balanced"
+  embedding_model: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-print(f"Оптимальное количество тем: {optimal_topics}")
-for topic_id, keywords in topic_keywords.items():
-    print(f"Тема {topic_id}: {', '.join(keywords)}")
+# Общие параметры анализа
+analyse:
+  max_clusters: 20
+  min_topics: 2
+  max_topics: 20
+  reading_speed_wpm: 150.0
 ```
 
-### Анализ персонажей:
+Вы можете создать свой файл конфигурации, изменив любые параметры по своему усмотрению.
+
+## Расширяемость
+
+Библиотека спроектирована с учетом возможности расширения и подключения пользовательских модулей через плагинную систему. Это позволяет добавлять собственные:
+
+- Парсеры текста для поддержки новых форматов ввода
+- Обработчики эмоциональной окраски текста
+- Энкодеры для создания эмбеддингов
+
+Т.е. это расширяемо на другие форматы сюжетов.
+
+### Создание собственного парсера
 
 ```python
-from novel_analyser import CharacterAnalyser
+from novel_analyser.core.interfaces import BaseParser
 
-# Создаем анализатор персонажей
-character_analyser = CharacterAnalyser()
-
-# Получаем метрики персонажей
-character_metrics = character_analyser.compute_character_metrics({
-    "герой": "Ну как с сосисками?",
-    "герой 2": "5 минут, турецкий"
-})
-
-for char_name, metrics in character_metrics.items():
-    print(f"Персонаж: {char_name}")
-    print(f"Метрики: {metrics}")
+class MyCustomParser(BaseParser):
+    def __init__(self, **kwargs):
+        super().__init__()
+        # Инициализация вашего парсера
+    
+    def parse_blocks(self, text, raw_style=False):
+        # Реализация парсинга блоков
+        pass
+    
+    def parse_character_dialogues(self, blocks):
+        # Реализация извлечения диалогов персонажей
+        pass
+    
+    def extract_sentences(self, text):
+        # Реализация извлечения предложений
+        pass
 ```
 
-### Настройка конфигурации
+Затем вы можете использовать свой парсер, указав его в конфигурации:
 
-```python
-from novel_analyser import configure
-
-configure({
-    "output": {
-        "output_dir": "my_analysis"
-    },
-    "sentiment_analyze": {
-        "positive_threshold": 0.1,
-        "negative_threshold": -0.1
-    },
-    "model": {
-        "use_gpu": True
-    },
-    "embedding": {
-        "args": {
-            "model_name": "sentence-transformers/LaBSE",
-            "show_progress_bar": False
-        }
-    }
-})
+```yaml
+parser:
+  module_path: "path.to.your.module.MyCustomParser"
+  args:
+    custom_parameter: value
 ```
 
 ## Структура результатов анализа
 
-Результат анализа (`AnalysisResult`) содержит:
+Результаты анализа сохраняются в указанной директории и включают:
 
-- `metrics`: словарь с числовыми метриками и другими результатами анализа
-- `figures`: словарь с путями к сохраненным визуализациям
-- `summary`: текстовое резюме результатов анализа
+1. **Метрики в текстовом файле** (metrics.txt): Содержит текстовое резюме и числовые метрики анализа
+2. **Визуализации**: Графики, гистограммы и диаграммы для различных аспектов анализа
+   - Гистограммы распределения эмоциональной окраски
+   - Диаграммы тематического моделирования
+   - Визуализация кластеров текста
+   - И многое другое
 
-## Конфигурация
+## Создатели
 
-Библиотека использует конфигурационный файл в формате YAML. Конфигурация по умолчанию находится в `configs/default_config.yaml`. Вы можете изменить параметры, используя функцию `configure()` или создав свой конфигурационный файл.
+Comiam
 
-## Логирование
+## Лицензия
 
-Novel Analyser поддерживает настраиваемое логирование, которое можно сконфигурировать под ваши потребности:
-
-```python
-from novel_analyser.utils.logging import configure_logging
-import logging
-
-# Настройка логирования из конфиг-файла
-configure_logging("path/to/logging_config.yaml")
-
-# Получение логгера для вашего модуля
-logger = logging.getLogger("your_module_name")
-
-# Использование логгера
-...
-```
-
-Библиотека поставляется с конфигурационным файлом логгирования по умолчанию `configs/logging_config.yaml`.
-
-## Расширяемость
-
-Novel Analyser спроектирован с учетом возможности расширения. Вы можете создавать собственные компоненты парсинга и обработки сюжета для различных аспектов анализа, не меняя основной код библиотеки.
-
-### Собственные парсеры текста (можно Renpy, можно Snoflake и другие)
-
-Для создания собственного парсера текста необходимо реализовать интерфейс `BaseParser`:
-
-```python
-from novel_analyser.core.interfaces.parser import BaseParser
-from typing import Dict, List
-
-class MyCustomParser(BaseParser):
-    """Мой собственный парсер текста в формате X."""
-    
-    def __init__(self, **kwargs):
-        super().__init__()
-        # Инициализация парсера с дополнительными параметрами
-        
-    def parse_blocks(self, text: str, raw_style: bool = False) -> List[str]:
-        """
-        Разбирает текст на блоки.
-        """
-        # Ваша реализация
-        return blocks
-        
-    def parse_character_dialogues(self, blocks: List[str]) -> Dict[str, List[str]]:
-        """
-        Извлекает диалоги персонажей.
-        """
-        # Ваша реализация
-        return dialogues
-        
-    def extract_sentences(self, text: str) -> List[str]:
-        """
-        Извлекает предложения из текста.
-        """
-        # Ваша реализация
-        return sentences
-```
-
-### Собственные обработчики эмоциональной окраски
-
-Если хотите добавить свою модель для анализа настроения текста, то велкам. Для создания собственного обработчика эмоциональной окраски текста необходимо реализовать интерфейс `BaseSentimentProcessor`:
-
-```python
-from novel_analyser.core.interfaces.sentiment import BaseSentimentProcessor
-from typing import List, Literal
-
-class MyCustomSentimentProcessor(BaseSentimentProcessor):
-    """Мой собственный обработчик эмоциональной окраски текста."""
-    
-    def __init__(self, **kwargs):
-        super().__init__()
-        # Инициализация обработчика с дополнительными параметрами
-        
-    def get_sentiment(self, text: str) -> float:
-        """
-        Вычисляет эмоциональную оценку для текста.
-        """
-        # Ваша реализация
-        return sentiment
-        
-    def analyze_long_text(
-        self,
-        text: str,
-        weighting_strategy: Literal["equal", "narrative", "speech"] = "equal",
-    ) -> float:
-        """
-        Анализирует длинный текст, разбивая его на фрагменты.
-        """
-        # Ваша реализация
-        return overall_sentiment
-        
-    def split_text_into_chunks(
-        self, text: str, max_length: int, overlap: int
-    ) -> List[str]:
-        """
-        Разделяет длинный текст на перекрывающиеся фрагменты.
-        """
-        # Ваша реализация
-        return chunks
-```
-
-### Собственные обработчики эмбеддингов
-
-Для создания собственного обработчика эмбеддингов текста необходимо реализовать интерфейс `BaseEmbeddingEncoder`:
-
-```python
-from novel_analyser.core.interfaces.embedding import BaseEmbeddingEncoder
-import numpy as np
-from typing import List
-
-class MyCustomEmbeddingProcessor(BaseEmbeddingEncoder):
-    """Мой собственный обработчик эмбеддингов текста."""
-    
-    def __init__(self, **kwargs):
-        super().__init__()
-        # Инициализация обработчика с дополнительными параметрами
-        
-    def encode(self, texts: List[str], show_progress: bool = True) -> np.ndarray:
-        """
-        Кодирует тексты в эмбеддинги.
-        """
-        # Ваша реализация
-        return embeddings
-        
-    def get_embedding_dimension(self) -> int:
-        """
-        Возвращает размерность эмбеддингов.
-        """
-        # Ваша реализация (если нужно переопределить метод базового класса)
-        return dimension
-```
-
-### Подключение собственных плагинов
-
-Для использования собственных плагинов нужно указать путь к их классам в конфигурации:
-
-```python
-from novel_analyser import configure
-
-configure({
-    "parser": {
-        "module_path": "your_module.parsers.CustomParser",
-        "args": {
-            "custom_param": "value"
-        }
-    },
-    "sentiment": {
-        "module_path": "your_module.sentiment.CustomSentimentProcessor",
-        "args": {
-            "model_path": "/path/to/model"
-        }
-    },
-    "embedding": {
-        "module_path": "your_module.embedding.CustomEmbeddingProcessor",
-    }
-})
-```
-
-### Регистрация собственных компонентов
-
-После создания собственного компонента его необходимо зарегистрировать в системе:
-
-```python
-from novel_analyser.core.plugins import get_parser_registry, get_sentiment_processor_registry
-from my_module import MyCustomParser, MyCustomSentimentProcessor
-
-# Регистрация собственного парсера
-parser_registry = get_parser_registry()
-parser_registry.register("MyCustomParser", MyCustomParser)
-
-# Регистрация собственного обработчика эмоциональной окраски
-sentiment_registry = get_sentiment_processor_registry()
-sentiment_registry.register("MyCustomSentimentProcessor", MyCustomSentimentProcessor)
-
-# Настройка конфигурации для использования ваших компонентов
-from novel_analyser import configure
-
-configure({
-    "parser": {
-        "module_path": "my_module.MyCustomParser",
-        "args": {
-            "your_custom_param": "value"
-        }
-    },
-    "sentiment": {
-        "module_path": "my_module.MyCustomSentimentProcessor",
-        "args": {
-            "your_custom_param": "value"
-        }
-    }
-})
-```
-
-### Создание собственных анализаторов
-
-Вы также можете создавать полностью новые анализаторы, наследуясь от базового класса `BaseAnalyser`:
-
-```python
-from novel_analyser.core.base_analyser import BaseAnalyser, AnalysisResult
-from typing import List, Optional
-
-class MyCustomAnalyser(BaseAnalyser):
-    """Мой собственный анализатор для XYZ."""
-    
-    def __init__(self, config=None):
-        super().__init__(config)
-        # Дополнительная инициализация
-        
-    def analyse(self, blocks: List[str]) -> AnalysisResult:
-        """
-        Выполняет анализ текстовых блоков.
-        
-        Args:
-            blocks: Список текстовых блоков для анализа
-            
-        Returns:
-            Результат анализа
-        """
-        result = AnalysisResult()
-        
-        # Ваша логика анализа
-        # ...
-        
-        # Заполняем метрики
-        result.metrics.update({
-            "my_metric_1": value1,
-            "my_metric_2": value2,
-        })
-        
-        # Заполняем пути к сохраненным изображениям
-        result.figures.update({
-            "my_plot": self.save_figure("my_custom_plot.png"),
-        })
-        
-        # Заполняем текстовое резюме
-        result.summary = "Мой анализ:\n"
-        result.summary += f"  Метрика 1: {value1}\n"
-        result.summary += f"  Метрика 2: {value2}\n"
-        
-        return result
-```
-
-## Примеры визуализаций
-
-Библиотека генерирует различные визуализации:
-
-- Гистограммы распределения времени чтения, эмоциональной окраски и др.
-- Круговые диаграммы распределения эмоциональной окраски
-- Графики для определения оптимального количества тем и кластеров
-- Диаграммы рассеяния для визуализации кластеров и тем
-- Столбчатые диаграммы для анализа персонажей
-
-## Автор
-
-Максим
-
-## Содействие
-
-Вклады в проект приветствуются! Если у вас есть предложения или вы нашли ошибку, пожалуйста, создайте issue или pull request.
