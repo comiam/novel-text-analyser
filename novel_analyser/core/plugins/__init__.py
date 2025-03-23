@@ -1,4 +1,4 @@
-from .plugins import (
+from novel_analyser.core.plugins.plugins import (
     create_text_parser,
     create_sentiment_processor,
     create_embedding_encoder,

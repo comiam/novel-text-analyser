@@ -62,6 +62,11 @@ class BaseEmbeddingEncoder(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def clear_cache(self) -> None:
+        """Очищает кэш эмбеддингов."""
+        pass
+
     def get_embedding_dimension(self) -> int:
         """
         Возвращает размерность эмбеддингов.

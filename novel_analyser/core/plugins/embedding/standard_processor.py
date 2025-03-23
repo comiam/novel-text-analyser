@@ -5,7 +5,7 @@
 который используется по умолчанию.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import numpy as np
 import torch
@@ -51,20 +51,30 @@ class StandardEmbeddingProcessor(BaseEmbeddingEncoder):
             else "cpu"
         )
 
+        # Добавляем кэш для часто используемых текстов
+        self._cache: Dict[str, np.ndarray] = {}
+
         # Инициализируем модель
         logger.info(f"Загрузка модели для эмбеддингов: {self.model_name}")
-        self.model = SentenceTransformer(self.model_name, device=self.device)
-
-        logger.info(f"Используемое устройство для вычислений: {self.device}")
-        logger.info(
-            f"Размерность эмбеддингов: {self.get_embedding_dimension()}"
-        )
+        try:
+            self.model = SentenceTransformer(
+                self.model_name, device=self.device
+            )
+            logger.info(
+                f"Используемое устройство для вычислений: {self.device}"
+            )
+            logger.info(
+                f"Размерность эмбеддингов: {self.get_embedding_dimension()}"
+            )
+        except Exception as e:
+            logger.error(f"Ошибка загрузки модели: {str(e)}")
+            raise
 
     def encode(
         self, texts: List[str], show_progress: bool = True
     ) -> np.ndarray:
         """
-        Кодирует тексты в эмбеддинги.
+        Кодирует тексты в эмбеддинги с использованием кэширования для повторяющихся текстов.
 
         Args:
             texts: Список текстов для кодирования
@@ -73,16 +83,51 @@ class StandardEmbeddingProcessor(BaseEmbeddingEncoder):
         Returns:
             Массив эмбеддингов размерности (len(texts), embedding_dim)
         """
-        if not texts:
+        if not texts or not any(texts):
             logger.warning("Получен пустой список текстов для кодирования")
-            # Возвращаем пустой массив с правильной размерностью
             return np.zeros((0, self.get_embedding_dimension()))
 
+        # Разделяем тексты на те, что есть в кэше, и те, что нужно закодировать
+        texts_to_encode = []
+        text_indices = []
+        cached_embeddings = {}
+
+        for i, text in enumerate(texts):
+            if text in self._cache:
+                cached_embeddings[i] = self._cache[text]
+            else:
+                texts_to_encode.append(text)
+                text_indices.append(i)
+
+        # Если все уже в кэше, просто возвращаем результат
+        if not texts_to_encode:
+            result = np.zeros((len(texts), self.get_embedding_dimension()))
+            for i, embedding in cached_embeddings.items():
+                result[i] = embedding
+            return result
+
         try:
-            return self.model.encode(texts, show_progress_bar=show_progress)
+            new_embeddings = self.model.encode(
+                texts_to_encode, show_progress_bar=show_progress
+            )
+            result = np.zeros((len(texts), self.get_embedding_dimension()))
+
+            for i, embedding in cached_embeddings.items():
+                result[i] = embedding
+
+            for i, (idx, text) in enumerate(
+                zip(text_indices, texts_to_encode)
+            ):
+                embedding = new_embeddings[i]
+                result[idx] = embedding
+
+                if text is not None and text.strip():
+                    self._cache[text] = embedding
+                self._cache[text] = embedding
+
+            return result
         except Exception as e:
             logger.error(f"Ошибка при кодировании текстов: {str(e)}")
-            # В случае ошибки возвращаем нулевые эмбеддинги
             return np.zeros((len(texts), self.get_embedding_dimension()))
 
     def get_embedding_dimension(self) -> int:
@@ -93,3 +138,7 @@ class StandardEmbeddingProcessor(BaseEmbeddingEncoder):
             Размерность эмбеддинга
         """
         return self.model.get_sentence_embedding_dimension()
+
+    def clear_cache(self) -> None:
+        """Очищает кэш эмбеддингов."""
+        self._cache.clear()

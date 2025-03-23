@@ -14,7 +14,6 @@ from transformers import (
     AutoConfig,
 )
 
-# Update import to get sentiment config from the main config module
 from novel_analyser.core.config import get_config
 from novel_analyser.core.interfaces import BaseSentimentProcessor
 from novel_analyser.utils.logging import get_logger
@@ -51,6 +50,14 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
         # Получаем конфигурацию
         config = get_config()
 
+        # Определение устройства
+        self.device = (
+            "cuda"
+            if torch.cuda.is_available() and config.model.use_gpu
+            else "cpu"
+        )
+        logger.info(f"Используемое устройство для вычислений: {self.device}")
+
         # Инициализируем модель и токенизатор
         self.model_name = config.model.sentiment_model
         logger.info(
@@ -62,16 +69,10 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
         self.model = AutoModelForSequenceClassification.from_pretrained(
             self.model_name,
             config=self.model_config,
-            torch_dtype=(
-                torch.float16
-                if torch.cuda.is_available() and config.model.device == "cuda"
-                else None
-            ),
+            torch_dtype=(torch.float16 if self.device == "cuda" else None),
         )
 
-        # Определение устройства и перемещение модели
-        self.device = config.model.device
-        logger.info(f"Используемое устройство для вычислений: {self.device}")
+        # Перемещение модели на устройство
         self.model = self.model.to(self.device)
 
         # Вычисляем безопасную максимальную длину для модели
@@ -144,6 +145,10 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
             f"Разделение текста длиной {len(text)} символов на фрагменты"
         )
 
+        # Используем значения по умолчанию, если не указаны
+        max_length = max_length or self.safe_max_length
+        overlap = overlap or self.split_chunk_overlap
+
         # Разделение по предложениям для более естественных чанков
         sentences = [
             s.strip() for s in text.replace("\n", " ").split(".") if s.strip()
@@ -163,7 +168,7 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
             chunks = []
             current_chunk = []
             current_length = 0
-            max_words = int(self.safe_max_length * 0.9)  # Примерная оценка
+            max_words = int(max_length * 0.9)  # Примерная оценка
 
             for word in words:
                 if current_length + 1 > max_words:
@@ -187,9 +192,7 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
         chunks = []
         current_chunk = []
         current_est_tokens = 0
-        max_est_tokens = int(
-            self.safe_max_length * 0.9
-        )  # Консервативная оценка
+        max_est_tokens = int(max_length * 0.9)  # Консервативная оценка
 
         for sentence in sentences:
             # Грубая оценка количества токенов в предложении
@@ -256,7 +259,7 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
         chunk_sentiments = []
         chunk_weights = []
 
-        # Оцениваем длину каждого чанка для весов без использования токенизатора
+        # Оцениваем длину каждого чанка для весов
         chunk_lengths = [len(chunk) for chunk in chunks]
         total_length = sum(chunk_lengths)
 
@@ -272,16 +275,14 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
                 # Абсолютное значение сентимента как мера уверенности модели
                 confidence = abs(sentiment)
 
-                # === РАСЧЕТ ВЕСОВЫХ КОЭФФИЦИЕНТОВ ===
-
-                # 1. Вес по длине: более длинные фрагменты имеют больший вес
+                # Вес по длине: более длинные фрагменты имеют больший вес
                 length_weight = (
                     chunk_lengths[i] / total_length
                     if total_length > 0
                     else 1.0
                 )
 
-                # 2. Вес по позиции: учитывает положение фрагмента в тексте
+                # Вес по позиции: учитывает положение фрагмента в тексте
                 normalized_position = i / max(1, len(chunks) - 1)
 
                 # Выбор стратегии позиционного взвешивания
@@ -297,7 +298,7 @@ class StandardSentimentProcessor(BaseSentimentProcessor):
                     # Равномерный вес для всех позиций
                     position_factor = 1.0
 
-                # 3. Вес по уверенности: учитывает силу эмоционального окраса
+                # Вес по уверенности: учитывает силу эмоционального окраса
                 confidence_factor = 0.3 + 0.7 * min(1.0, confidence)
 
                 # Финальный вес - произведение всех факторов

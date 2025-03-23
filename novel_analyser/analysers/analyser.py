@@ -21,8 +21,8 @@ from novel_analyser.core.config import get_config, configure
 from novel_analyser.core.plugins import (
     create_sentiment_processor,
     create_text_parser,
+    create_embedding_encoder,
 )
-from novel_analyser.core.plugins.plugins import create_embedding_encoder
 from novel_analyser.core.text_processor import TextProcessor
 from novel_analyser.utils.logging import get_logger
 
@@ -68,17 +68,19 @@ class RootAnalyser:
         if config:
             configure(config)
         self.config = get_config()
+        self._initialize_components()
 
-        # Создаем парсер для анализа текста
-        logger.debug("Инициализация парсера текста")
-        self.parser = create_text_parser()
+    def _initialize_components(self):
+        """Initialize all analysers and processors."""
+        # Создаем базовые компоненты
+        logger.debug("Инициализация компонентов анализа")
         self.text_processor = TextProcessor()
         self.text_parser = create_text_parser()
         self.sentiment_processor = create_sentiment_processor()
         self.embedding_encoder = create_embedding_encoder()
 
-        # Инициализируем все анализаторы
-        logger.debug("Инициализация анализаторов")
+        # Инициализируем анализаторы, которые не требуют тяжелых моделей
+        logger.debug("Инициализация базовых анализаторов")
         self.basic_analyser = BasicAnalyser(self.config)
         self.readability_analyser = ReadabilityAnalyser(
             self.text_processor, self.config
@@ -86,18 +88,15 @@ class RootAnalyser:
         self.narrative_analyser = NarrativeAnalyser(
             self.text_processor, self.config
         )
-        self.sentiment_analyser = SentimentAnalyser(
-            self.sentiment_processor, self.config
-        )
         self.topic_analyser = TopicAnalyser(self.config)
-        self.character_analyser = CharacterAnalyser(
-            self.text_parser,
-            self.sentiment_analyser,
-            self.basic_analyser,
-            self.config,
-        )
         self.repetition_analyser = RepetitionAnalyser(
             self.text_processor, self.config
+        )
+
+        # Инициализируем анализаторы, требующие ML моделей
+        logger.debug("Инициализация ML анализаторов")
+        self.sentiment_analyser = SentimentAnalyser(
+            self.sentiment_processor, self.config
         )
         self.clustering_analyser = ClusteringAnalyser(
             self.text_parser, self.embedding_encoder, self.config
@@ -105,6 +104,15 @@ class RootAnalyser:
         self.semantic_analyser = SemanticAnalyser(
             self.text_parser, self.embedding_encoder, self.config
         )
+
+        # Инициализируем анализаторы, зависящие от других анализаторов
+        self.character_analyser = CharacterAnalyser(
+            self.text_parser,
+            self.sentiment_analyser,
+            self.basic_analyser,
+            self.config,
+        )
+
         logger.debug("Все анализаторы инициализированы")
 
     def analyse_file(
@@ -193,6 +201,7 @@ class RootAnalyser:
             logger.debug("Выбраны все доступные анализы")
             selected_analyses = all_analyses
         else:
+            # Оптимизация: создаем только необходимые анализаторы
             selected_analyses = {
                 name: analyser
                 for name, analyser in all_analyses.items()
@@ -202,14 +211,21 @@ class RootAnalyser:
                 f"Выбранные анализаторы: {', '.join(selected_analyses.keys())}"
             )
 
-        # Парсим блоки текста
+        # Парсим блоки текста - делаем только один раз для всех анализаторов
         logger.debug("Парсинг блоков текста")
-        blocks = self.parser.parse_blocks(text)
+        blocks = self.text_parser.parse_blocks(text)
         logger.debug(f"Получено {len(blocks)} блоков текста")
 
-        logger.debug("Парсинг сырых блоков текста")
-        raw_blocks = self.parser.parse_blocks(text, raw_style=True)
-        logger.debug(f"Получено {len(raw_blocks)} сырых блоков текста")
+        # Парсим сырые блоки только если нужен базовый анализ или анализ персонажей
+        raw_blocks = None
+        if (
+            "basic" in selected_analyses
+            or "character" in selected_analyses
+            or "all" in options.analyses
+        ):
+            logger.debug("Парсинг сырых блоков текста")
+            raw_blocks = self.text_parser.parse_blocks(text, raw_style=True)
+            logger.debug(f"Получено {len(raw_blocks)} сырых блоков текста")
 
         # Создаем общий результат
         result = AnalysisResult()
@@ -218,16 +234,15 @@ class RootAnalyser:
         for name, analyser in selected_analyses.items():
             logger.info(f"Выполнение анализа: {name}")
             try:
-                match name:
-                    case "basic":
-                        # Для базового анализа передаем и очищенные, и сырые блоки
-                        analysis_result = analyser.analyse(blocks, raw_blocks)
-                    case "character":
-                        # Для анализа персонажей передаем только сырые блоки
-                        analysis_result = analyser.analyse(raw_blocks)
-                    case _:
-                        # Для остальных анализов передаем только очищенные блоки
-                        analysis_result = analyser.analyse(blocks)
+                if name == "basic" and raw_blocks is not None:
+                    # Для базового анализа передаем и очищенные, и сырые блоки
+                    analysis_result = analyser.analyse(blocks, raw_blocks)
+                elif name == "character" and raw_blocks is not None:
+                    # Для анализа персонажей передаем только сырые блоки
+                    analysis_result = analyser.analyse(raw_blocks)
+                else:
+                    # Для остальных анализов передаем только очищенные блоки
+                    analysis_result = analyser.analyse(blocks)
 
                 # Добавляем результаты к общему результату
                 result.extend(analysis_result)
@@ -247,6 +262,8 @@ class RootAnalyser:
             logger.info("Метрики успешно сохранены")
         except Exception as e:
             logger.error(f"Ошибка при сохранении метрик: {str(e)}")
+
+        self.embedding_encoder.clear_cache()
 
         return result
 

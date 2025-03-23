@@ -9,10 +9,6 @@ from novel_analyser.core.interfaces.embedding import (
     BaseEmbeddingEncoder,
     EmbeddingProcessorProtocol,
 )
-from novel_analyser.core.interfaces.models import (
-    ModelFactory,
-    PydanticModelProtocol,
-)
 from novel_analyser.core.interfaces.parser import BaseParser, ParserProtocol
 from novel_analyser.core.interfaces.sentiment import (
     BaseSentimentProcessor,
@@ -26,6 +22,4 @@ __all__ = [
     "SentimentProcessorProtocol",
     "BaseEmbeddingEncoder",
     "EmbeddingProcessorProtocol",
-    "PydanticModelProtocol",
-    "ModelFactory",
 ]
